@@ -2,7 +2,7 @@
 name: Canvas Diagrams
 description: Generate Obsidian Canvas (.canvas) files for UX flows, data flows, and testing infrastructure visualization
 when_to_use: when user asks to visualize architecture, flows, data pipelines, testing infrastructure, or says "canvas", "diagram", "flow chart", "visualize"
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Canvas Diagrams
@@ -45,12 +45,20 @@ Examples at each resolution:
 - **Edges:** Internal data transformations, branching logic
 - **Generated FIRST** — this is the primary working canvas
 
-### Level 3: Function/Step Detail
+### Level 3a: Function/Step Detail
 - **5-10 nodes** — individual steps within one function or process
 - **Purpose:** "What happens inside this function?"
 - **Node content:** Code snippets, parameter details, branching conditions
 - **Edges:** Sequential steps, conditional branches, error paths
 - **When:** A function is complex enough to warrant decomposition
+
+### Level 3b: Data-Field Mapping
+- **15-30 nodes** — individual fields from an API, their processing, and storage destinations
+- **Purpose:** "What data comes in, what do we keep, and where does it go?"
+- **Node content:** Field names, types, storage column names, processing functions
+- **Layout:** Horizontal 3-column (Source → Processing → Destination + Discarded)
+- **One canvas per API source** (not per function)
+- **When:** You need to audit what data is retained vs discarded from an external integration
 
 ### Cross-linking (Canvas embedding)
 
@@ -108,6 +116,29 @@ Maps what's tested, how, and where gaps exist.
 | Mock/fixture | `"6"` (purple) | Test infrastructure |
 | CI/runner | `"3"` (yellow) | How tests are executed |
 
+### 4. Data-Field Mapping (`data-flow-*-fields.canvas`)
+Maps API response fields to storage decisions. Shows what data is available, what's retained, and what's discarded.
+
+**Node categories & colors:**
+| Element | Color | Meaning |
+|---------|-------|---------|
+| API field (source) | `"4"` (green) | Raw data available from external API |
+| Processing step | `"5"` (cyan) | Transformation before storage |
+| Storage destination | `"6"` (purple) | Where data lands (table.column) |
+| Ephemeral use | `"3"` (yellow) | Used for matching/scoring, never persisted |
+| Discarded | `"1"` (red) | Explicitly not stored |
+
+**Edge colors for data fate:**
+| Edge meaning | Color |
+|--------------|-------|
+| Retained (stored) | `"4"` (green) |
+| Processing flow | `"5"` (cyan) |
+| Discarded (not stored) | `"1"` (red) |
+
+### Showing What's NOT Stored
+
+Use a red (`"1"`) group labeled "Discarded" to explicitly show fields/data that are available but intentionally not persisted. This makes data decisions visible and reviewable — a viewer can question "should we actually be storing X?"
+
 ## Canvas JSON Format
 
 **Important Obsidian behaviors:**
@@ -148,6 +179,15 @@ Maps what's tested, how, and where gaps exist.
 - **Branching subsystems:** extend horizontally (to the right or left of spine)
 - **Don't stack everything vertically** — if a subsystem is its own domain, give it its own spatial region
 - **Example:** Ingestion flows down, prayer processing branches right, execution flows back down
+
+### Horizontal Flow (Data-Mapping)
+For data-mapping canvases (L3b), use left-to-right flow instead of vertical:
+- **Column 1 (left):** API/source fields — what's available
+- **Column 2 (center):** Processing/transformation steps
+- **Column 3 (right-top):** Storage destinations — what we keep
+- **Column 3 (right-bottom):** Discarded group — what we throw away
+
+Column spacing: 500-550px between groups. Each group contains its nodes stacked vertically.
 
 ### Node Sizing
 
