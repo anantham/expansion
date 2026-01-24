@@ -1,0 +1,11 @@
+{
+  "name": "expansion",
+  "description": "Custom skills: canvas diagrams, visualization, and personal workflow extensions",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aditya"
+  },
+  "homepage": "https://github.com/anantham/expansion",
+  "repository": "https://github.com/anantham/expansion",
+  "license": "MIT"
+}
