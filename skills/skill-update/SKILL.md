@@ -2,7 +2,7 @@
 name: Skill Update
 description: Meta-skill for learning from skill usage. Tracks uncertainties, human interventions, and gaps discovered during use, then proposes concrete skill patches.
 when_to_use: when actively using another skill and noticing ambiguities, gaps, or places where the skill's instructions were insufficient or wrong
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Skill Update (Meta-Skill)
@@ -27,24 +27,23 @@ Invoke this **alongside** another skill when ANY of these occur:
 
 ### Phase 1: Observation (During Skill Use)
 
-As you work with the primary skill, maintain a running log in your working memory:
+As you work with the primary skill, note observations openly in the conversation when you encounter them. The context window IS the scratchpad — reasoning traces are already visible, so there's no need for a separate hidden phase. Just call out friction as you hit it:
 
 ```
-SKILL_UPDATE_LOG:
-- skill: <skill being used>
-- task: <what you're trying to accomplish>
-- observations:
-  1. [AMBIGUITY] <where the skill was unclear>
-  2. [GAP] <what the skill doesn't cover but should>
-  3. [WRONG] <where the skill's guidance produced a bad result>
-  4. [TIGHT] <where constraints were too restrictive for the task>
-  5. [LOOSE] <where more structure was needed>
-  6. [ASKED_HUMAN] <question asked + why skill didn't answer it>
-  7. [JUDGMENT] <decision made that the skill should encode>
-  8. [PATTERN] <reusable pattern discovered during work>
+SKILL_UPDATE observation: [TYPE] <what happened>
 ```
 
-**Don't interrupt the primary task.** Collect observations silently. The learning phase comes after delivery.
+Types:
+- `[AMBIGUITY]` — skill was unclear, had to interpret
+- `[GAP]` — skill doesn't cover this, but should
+- `[WRONG]` — skill's guidance produced a bad result
+- `[TIGHT]` — constraints too restrictive for the task
+- `[LOOSE]` — more structure was needed
+- `[ASKED_HUMAN]` — question asked that skill should have answered
+- `[JUDGMENT]` — decision made that the skill should encode
+- `[PATTERN]` — reusable pattern discovered during work
+
+**Keep delivering the primary task.** Observations are inline notes, not interruptions.
 
 ### Phase 2: Reflection (After Delivery)
 
@@ -99,7 +98,7 @@ On user approval:
 
 | Don't | Do Instead |
 |-------|-----------|
-| Interrupt primary work to discuss skill gaps | Note silently, discuss after delivery |
+| Stop working to write long reflections | Brief inline note, keep delivering |
 | Propose patches for one-off edge cases | Only patch recurring patterns |
 | Rewrite the entire skill based on one use | Targeted patches with rationale |
 | Add complexity for hypothetical futures | Only encode patterns you've actually hit |
@@ -117,17 +116,13 @@ On user approval:
 ## Integration with Skill Lifecycle
 
 ```
-First use of skill
+Use skill → hit friction → note inline → keep working
     ↓
-Notice friction → SKILL_UPDATE_LOG
+Deliver primary output
     ↓
-Complete primary task
+Distill observations → draft patches
     ↓
-Phase 2: Reflect on observations
-    ↓
-Phase 3: Propose patches to user
-    ↓
-Phase 4: Apply approved changes
+Propose to user → apply approved changes
     ↓
 Next use benefits from improvements
     ↓
@@ -139,18 +134,22 @@ Repeat (skills converge toward robustness)
 **Primary skill**: canvas-diagrams (L3 data flow)
 **Task**: Map Beeper API fields → storage decisions
 
-**Observations during work:**
-1. [TIGHT] L3 defined as "5-10 nodes, individual steps within one function" — but data-field mapping needs 15-20 nodes across an API boundary
-2. [GAP] No color guidance for "kept vs discarded" — only component-type colors exist
-3. [GAP] No node type for "raw API field" — only transforms, storage, sources
-4. [AMBIGUITY] "Function/Step Detail" framing doesn't fit data-mapping tasks
-5. [PATTERN] Data-mapping canvases need a "what comes in" column, "decision" column, and "where it goes" column — a 3-column layout, not top-to-bottom flow
+**Inline observations as they happened:**
 
-**Resulting patches:**
-- Expand L3 definition to include "data-field mapping" as a valid L3 type
-- Add "kept/discarded" edge color convention (green=retained, red=discarded)
-- Add "API field" node type with its own color
-- Add layout variant: "3-column comparison" for mapping tasks
+> Building Beeper canvas... the skill says L3 is "5-10 nodes" but I've got 24 fields to map.
+> `SKILL_UPDATE observation: [TIGHT] L3 node count too restrictive for field-level mapping`
+
+> Need to show discarded fields in red but the skill only has component-type colors.
+> `SKILL_UPDATE observation: [GAP] No color convention for retained vs discarded data fate`
+
+> Using horizontal layout — vertical spine doesn't work for source→destination comparison.
+> `SKILL_UPDATE observation: [PATTERN] Data-mapping needs 3-column horizontal, not vertical spine`
+
+**Resulting patches (after delivery):**
+- Expand L3 to include "data-field mapping" variant (L3b, 15-30 nodes)
+- Add data-fate edge colors (green=retained, red=discarded)
+- Add horizontal 3-column layout for mapping canvases
+- Add "Discarded" group concept for explicit non-storage
 
 ## Checklist
 
