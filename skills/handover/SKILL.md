@@ -200,21 +200,48 @@ This skill ensures continuity across instances. The next Claude picking up this 
 
 ## Automatic Hook Integration
 
-To run handover automatically at 90% context, add to your Claude Code hooks:
+Claude Code has a `PreCompact` hook that fires at ~83.5% context (before automatic compaction).
 
+**Already configured in `~/.claude/settings.json`:**
 ```json
 {
   "hooks": {
-    "pre_compaction": {
-      "command": "/handover",
-      "trigger_at_context_percent": 90
-    }
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[HANDOVER TRIGGER] Context at compaction threshold - run /handover'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[POST-COMPACTION] Check docs/HANDOVER.md for context'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-**Behavior when triggered by hook:**
-- Announce: "Context at 90% — running automatic handover before compaction."
+**How it works:**
+1. When context hits ~83.5%, `PreCompact` hook fires with reminder to run `/handover`
+2. You run `/handover` to preserve state
+3. Compaction happens, summarizing conversation
+4. `SessionStart` with `compact` matcher reminds next instance to check handover docs
+
+**Behavior when triggered:**
+- Announce: "Context at compaction threshold — running handover before compaction."
 - Run all four phases
 - Be concise — context is precious
 - Prioritize: commits > threads > learnings > document
