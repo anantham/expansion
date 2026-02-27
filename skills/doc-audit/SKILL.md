@@ -57,6 +57,8 @@ Ask the user:
 
 For large codebases, recommend starting with a subsystem to avoid context overflow.
 
+**Non-interactive mode:** If running via subagent or automated pipeline, scope must be passed as a parameter (e.g., the directory path). Skip the scope question and proceed directly to Phase 2.
+
 ## Phase 2: Scan
 
 ### Code structure scan
@@ -103,6 +105,7 @@ For each module found in code, classify its documentation state:
 - New public functions not mentioned in docs
 - Removed functions still mentioned in docs
 - Changed return types or error behavior
+- **ADR specification drift** — compare code against ADR-documented formulas, algorithms, and contracts. If an ADR says "standard Brier score" but code implements a variant, that's DRIFT.
 
 **WHY?:** Doc describes what functions do but never mentions trade-offs, alternatives considered, or design decisions. Check: does the doc answer "why this way and not another way?"
 
@@ -111,6 +114,8 @@ For each module found in code, classify its documentation state:
 - Error handling patterns (some modules raise, some return None)
 - Import conventions (relative vs absolute)
 - Data format conventions (dict keys: `snake_case` vs `camelCase`)
+
+**Important:** Check CONVENTIONS.md for an "Intentional Divergences" section before flagging naming conflicts. Some projects intentionally use different conventions across boundaries (e.g., `snake_case` in DB columns but `camelCase` in API responses). If the divergence is documented as intentional, it's NOT a violation.
 
 **NAMING:** Search for semantic duplicates across modules:
 - `get_user` vs `fetch_user` vs `retrieve_user`
@@ -187,7 +192,7 @@ Present findings in this format:
 - **After audit → `doc-writer`**: "Fix finding #3" → creates/updates module docs
 - **After audit → `doc-prover`**: "Re-verify assertion X" → re-checks proof
 - **After audit → `surface-tech-debt`**: Audit finds doc gaps; tech-debt finds code smells. Complementary.
-- **CONVENTIONS.md** is ground truth for convention checks. If it doesn't exist, `doc-writer` should create it first.
+- **CONVENTIONS.md** is ground truth for convention checks. If it doesn't exist, `doc-writer` should create it first. **Run `doc-writer` to create CONVENTIONS.md BEFORE running a full audit** — otherwise convention checks have no baseline and produce noise.
 
 ## Checklist
 

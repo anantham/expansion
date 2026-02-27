@@ -18,7 +18,7 @@ Creates and updates module documentation at multiple resolution levels. Captures
 - `doc-audit` found GAP, STALE, DRIFT, or WHY? findings
 - New module just created and needs docs
 - After making a design decision during coding (capture bottom-up rationale)
-- When `docs/CONVENTIONS.md` doesn't exist yet
+- When `docs/CONVENTIONS.md` doesn't exist yet — **create this BEFORE running `doc-audit`** so convention checks have a baseline
 - When `docs/modules/INDEX.md` needs updating
 - User explicitly asks to document a module or feature
 
@@ -195,6 +195,15 @@ When a new module is created, it should follow these.>
 | Blueprint + store | API routes | `golden_bp` + `GoldenStore` |
 | Singleton store | DB access | `_golden_store` with lazy init |
 | Deterministic hashing | Split assignment | `SHA256(tweet_id) % 100` |
+
+## Intentional Divergences
+
+<Document naming/style divergences that cross boundaries intentionally.
+These are NOT convention violations — `doc-audit` should skip them.>
+
+| Divergence | Where | Why |
+|------------|-------|-----|
+| snake_case in DB, camelCase in API responses | All API routes | Frontend JS convention vs DB convention; conversion in route handlers |
 ```
 
 ### INDEX.md (`docs/modules/INDEX.md`)

@@ -149,10 +149,12 @@ code has changed since the proof was written.>
 
 ### Citations
 
-| # | File | Lines | Code hash | Status |
-|---|------|-------|-----------|--------|
-| 1 | `<relative/path/to/file.py>` | `<start>-<end>` | `<sha>` | valid |
-| 2 | `<relative/path/to/another.py>` | `<start>-<end>` | `<sha>` | valid |
+| # | File | Symbol | Lines | Code hash | Status |
+|---|------|--------|-------|-----------|--------|
+| 1 | `<relative/path/to/file.py>` | `<function_or_class>` | `<start>-<end>` | `<sha>` | valid |
+| 2 | `<relative/path/to/another.py>` | `<function_or_class>` | `<start>-<end>` | `<sha>` | valid |
+
+**Symbol anchoring:** Line numbers are recorded at proof-creation time but may shift. During re-verification, if `git diff` shows changes, locate the symbol by name first, then compare the code snapshot. If the symbol contains identical code at different line numbers, the citation is still valid — update the line numbers in the table.
 
 ### Cited Code Snapshots
 
@@ -274,6 +276,7 @@ git diff <proof_code_hash>..HEAD -- <file1> <file2> <file3>
 ### DO
 
 - **Cite exact lines** — not "somewhere in server.py" but `server.py:360-362`
+- **Anchor citations to symbols** — line numbers shift with edits. Always include the function/class name alongside the line range (e.g., `schema.py:split_for_tweet:110-116`). During re-verification, if lines shifted but the symbol still contains the same code, the citation is still valid — find the symbol by name, not by line number.
 - **Quote the code** — the reader should not need to open the file
 - **One fact per step** — each step in the evidence chain establishes exactly one thing
 - **State assumptions explicitly** — "this assumes the user has not modified the source code"
