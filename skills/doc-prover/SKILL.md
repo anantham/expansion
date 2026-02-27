@@ -7,9 +7,11 @@ description: Use when a codebase property needs a formal guarantee — mathemati
 
 ## Overview
 
-Creates and maintains formal ASSERTION → PROOF documents. Each proof is a logical argument citing specific `file:line` references that together establish WHY a claimed property holds. Proofs are machine-re-verifiable: if cited code lines change, the proof is flagged as invalidated.
+Creates and maintains formal ASSERTION → PROOF documents. Each proof has two layers: a **human narrative** that builds understanding through explanation, and a **machine manifest** that enables automated re-verification when code changes.
 
 **A proof is a legal brief, not a comment.** It builds a chain of evidence from specific code lines to a conclusion. A reader can verify the assertion by reading ONLY the proof file, without reading the entire codebase.
+
+**Two audiences, one file:** The human reads the narrative top-down to understand *why* the property holds. The agent reads the manifest bottom-up to check *whether* the cited code has changed.
 
 **Announce at start:** "Using doc-prover to create/verify assertion: <claim>."
 
@@ -45,6 +47,8 @@ Naming: kebab-case, descriptive. E.g., `split-determinism.md`, `api-key-locality
 
 ### Template
 
+Every proof file has two parts: the **Human Proof** (top) and the **Machine Manifest** (bottom). The human proof is what you read. The machine manifest is what the agent checks.
+
 ````markdown
 # ASSERTION: <Claim in plain English>
 
@@ -56,76 +60,134 @@ Code hash: <git short sha at verification time>
 Verified by: <human|agent>
 -->
 
-## Claim
+---
+## Part I: Human Proof
+---
+
+### Claim
 
 <Precise statement of what is being asserted. Unambiguous.
 Mathematical notation if applicable.>
 
-## Why This Matters
+### Why This Matters
 
 <What breaks or becomes untrustworthy if this assertion is false.
-Why someone would want this guarantee.>
+Why someone would want this guarantee. Written for a person who
+has never seen this codebase.>
 
-## Evidence Chain
+### The Argument
 
-### Step 1: <Description of first link in the chain>
+<A narrative explanation — like a textbook proof or a well-written
+blog post — that walks the reader through WHY this property holds.
+Use natural language, build intuition, explain the design.>
 
-**File:** `<relative/path/to/file.py>`
-**Lines:** `<start>-<end>`
-**Code hash:** `<sha of the file at verification time>`
+<Embed code snippets inline where they help understanding, but
+don't just dump code. Explain what each piece does and how it
+connects to the next.>
 
-```python
-<exact code at those lines>
+<Structure as a story with a beginning (setup), middle (the key
+mechanism), and end (why this guarantees the property).>
+
+**Example narrative style:**
+
+> The system assigns every tweet to exactly one of three splits
+> (train/dev/test) using a deterministic hash. The key insight is
+> that the split depends ONLY on the tweet ID — no randomness, no
+> database state, no ordering. Here's how:
+>
+> The function `split_for_tweet()` in `schema.py` takes a tweet ID,
+> computes its SHA256 hash, extracts the first 8 hex digits as an
+> integer, and takes modulo 100. This gives a bucket 0-99:
+>
+> ```python
+> bucket = int(hashlib.sha256(tweet_id.encode("utf-8")).hexdigest()[:8], 16) % 100
+> ```
+>
+> Buckets 0-69 → train (70%), 70-84 → dev (15%), 85-99 → test (15%).
+>
+> Because SHA256 is a pure function with no external state, the same
+> tweet ID always produces the same bucket, and therefore the same
+> split. This holds across runs, across machines, across time.
+
+### Boundary Conditions
+
+<Edge cases, assumptions, and conditions under which
+the assertion might NOT hold. Written conversationally:>
+
+- **Assumption:** <what must be true for this proof to hold>
+- **Exception:** <known case where the assertion is weaker>
+- **Threat:** <what code change would invalidate this proof>
+- **What would break this:** <specific scenario>
+
+### Verification (for the skeptical reader)
+
+<How a human can verify this themselves. Could be:>
+- A command to run
+- A manual test to perform
+- A specific file to read
+- A query to execute
+
+```bash
+# Example: verify two runs produce identical splits
+python -c "from src.data.golden.schema import split_for_tweet; print(split_for_tweet('12345'))"
+# Run again — same result every time
 ```
 
-**Establishes:** <What this code proves, in one sentence.>
+### Related
 
-### Step 2: <Description of second link>
+- Module doc: [`docs/modules/<name>.md`](../modules/<name>.md)
+- ADR: `docs/adr/NNN-<name>.md` (if applicable)
+- Other proofs that depend on this one: [list]
 
-**File:** `<relative/path/to/another_file.py>`
-**Lines:** `<start>-<end>`
-**Code hash:** `<sha>`
+---
+## Part II: Machine Manifest
+---
+
+<This section is for automated re-verification by the agent.
+Humans can skip this. The agent uses it to check whether cited
+code has changed since the proof was written.>
+
+### Citations
+
+| # | File | Lines | Code hash | Status |
+|---|------|-------|-----------|--------|
+| 1 | `<relative/path/to/file.py>` | `<start>-<end>` | `<sha>` | valid |
+| 2 | `<relative/path/to/another.py>` | `<start>-<end>` | `<sha>` | valid |
+
+### Cited Code Snapshots
+
+#### Citation 1: `<file.py>:<start>-<end>`
+
+```python
+<exact code at those lines at verification time>
+```
+
+**Establishes:** <one-sentence fact>
+
+#### Citation 2: `<another.py>:<start>-<end>`
 
 ```python
 <exact code>
 ```
 
-**Establishes:** <What this adds to the proof.>
+**Establishes:** <one-sentence fact>
 
-### Step N: ...
+### Logical Chain (formal)
 
-## Logical Chain
-
-<Connect the steps into a deductive argument:>
-
-1. Step 1 shows that <X>.
-2. Step 2 shows that <Y>.
+1. Citation 1 establishes that <X>.
+2. Citation 2 establishes that <Y>.
 3. From X and Y, it follows that <Z>.
 4. Therefore, <the assertion holds>.
 
-## Boundary Conditions
-
-<Edge cases, assumptions, and conditions under which
-the assertion might NOT hold:>
-
-- **Assumption:** <what must be true for this proof to hold>
-- **Exception:** <known case where the assertion is weaker>
-- **Threat:** <what code change would invalidate this proof>
-
-## Verification Script (optional)
-
-<If the assertion can be checked programmatically, include
-a script or command:>
+### Re-verification Commands
 
 ```bash
-python -m scripts.verify_<name>
+# Quick check: have any cited files changed?
+git diff <proof_code_hash>..HEAD -- <file1> <file2> ...
+
+# If diff is empty → all citations still valid
+# If diff is non-empty → re-examine affected citations
 ```
-
-## Related
-
-- Module doc: [`docs/modules/<name>.md`](../modules/<name>.md)
-- ADR: `docs/adr/NNN-<name>.md` (if applicable)
-- Other proofs that depend on this one: [list]
 ````
 
 ## Process
@@ -171,36 +233,41 @@ digraph prover {
 
 When `doc-audit` flags a `PROOF!` finding, or on periodic review:
 
-1. **Read the proof file**
-2. **For each evidence step:**
-   - Read the cited `file:line`
-   - Compare against the quoted code in the proof
-   - If code changed: flag the step as invalidated
-3. **If any step invalidated:**
+1. **Read Part II (Machine Manifest)** — skip the human narrative
+2. **For each citation in the table:**
+   - Run `git diff <proof_code_hash>..HEAD -- <cited_file>`
+   - If diff is empty: citation still valid, mark `valid`
+   - If diff is non-empty: read the cited lines, compare against snapshot
+3. **If any citation invalidated:**
+   - Read Part I (Human Proof) to understand the argument
    - Can the proof be repaired? (code changed but property still holds)
    - Or is the assertion now false? (code change broke the invariant)
-4. **Update proof status** in the HTML comment header
+4. **Update proof:**
+   - Update citation status in the table (`valid` → `invalidated`)
+   - Update header status (`valid` → `invalidated` or `under-review`)
+   - If repairable: update both the narrative AND the manifest
 5. **Report to human:**
-   > "Proof `split-determinism` step 3 invalidated: `schema.py:110-116` changed. The hash function was modified from SHA256 to SHA512. The assertion still holds (determinism is preserved) but the proof needs updating."
+   > "Proof `split-determinism` citation 3 invalidated: `schema.py:110-116` changed. The hash function was modified from SHA256 to SHA512. The assertion still holds (determinism is preserved) but the proof needs updating."
 
-### Machine-Verifiable Citations
+### Two Layers of Verification
 
-Each evidence step stores:
+| Layer | Who reads it | What it answers | Where in file |
+|-------|-------------|-----------------|---------------|
+| **Human Proof** (Part I) | Humans, new contributors | "WHY does this property hold?" | Top of file |
+| **Machine Manifest** (Part II) | Agent, `doc-audit` | "HAS the cited code changed?" | Bottom of file |
 
-| Field | Purpose | How to check |
-|-------|---------|-------------|
-| `File` | Which file | Does the file still exist? |
-| `Lines` | Which lines | Read those lines |
-| `Code hash` | File state at proof time | `git log --format=%h -1 -- <file>` |
-| Code snippet | Exact code quoted | Compare against current file content |
-
-**Quick re-verification** (without reading full proof):
+**Agent re-verification workflow** (fast path):
 ```bash
-# For each cited file, check if it changed since proof was written
-git diff <proof_code_hash>..HEAD -- <cited_file>
+# Check all cited files at once using the manifest table
+git diff <proof_code_hash>..HEAD -- <file1> <file2> <file3>
+# Empty output → proof still valid, no further reading needed
 ```
 
-If `git diff` is empty, the citation is still valid. If not, the step needs re-examination.
+**Human verification workflow** (understanding path):
+1. Read Part I narrative top-to-bottom
+2. Follow the argument, check it makes sense
+3. Optionally run the verification command in "Verification (for the skeptical reader)"
+4. If something feels wrong, check Part II citations against current code
 
 ## Writing Good Proofs
 
@@ -268,13 +335,23 @@ The user should specify which level they want. Default to **Standard**.
 
 ## Checklist
 
+**Part I — Human Proof:**
 - [ ] Assertion stated precisely and unambiguously
-- [ ] All relevant code paths identified (not just the happy path)
-- [ ] Each evidence step cites exact `file:line` with code snippet
-- [ ] Code hashes recorded for each cited file
-- [ ] Logical chain connects steps to conclusion
-- [ ] Boundary conditions and assumptions documented
-- [ ] Threats identified (what would invalidate this proof)
+- [ ] Narrative explains WHY the property holds (not just THAT it holds)
+- [ ] A non-expert can follow the argument without reading the codebase
+- [ ] Code snippets embedded where they build understanding
+- [ ] Boundary conditions and assumptions stated conversationally
+- [ ] Human verification command or manual test provided
+- [ ] Threats identified (what would break this)
+
+**Part II — Machine Manifest:**
+- [ ] All relevant code paths cited (not just the happy path)
+- [ ] Each citation has exact `file:line`, code hash, and code snapshot
+- [ ] Citation table is complete with status column
+- [ ] Formal logical chain connects citations to conclusion
+- [ ] Re-verification `git diff` command provided
+
+**Integration:**
 - [ ] Proof file written to `docs/proofs/<name>.md`
 - [ ] INDEX.md updated with new assertion
 - [ ] ASSERTION tag added to relevant module doc
