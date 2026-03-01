@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "expansion",
+  "description": "Custom skills: canvas diagrams, visualization, and personal workflow extensions",
+  "owner": {
+    "name": "Aditya"
+  },
+  "plugins": [
+    {
+      "name": "expansion",
+      "description": "Custom skills: canvas diagrams, visualization, and personal workflow extensions",
+      "version": "1.1.0",
+      "author": {
+        "name": "Aditya"
+      },
+      "source": "."
+    }
+  ]
+}
