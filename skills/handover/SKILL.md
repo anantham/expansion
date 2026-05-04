@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Handover
@@ -38,24 +38,55 @@ This skill ensures continuity across instances. The next Claude picking up this 
    git diff --stat
    ```
 
-2. **If uncommitted changes exist:**
+2. **Scope check — separate YOUR changes from ambient state.**
+
+   Before committing anything, identify which dirty files are from THIS
+   session vs which were already dirty when you started. Multi-agent
+   repos and human-co-edited repos always have ambient dirty state.
+
+   Useful checks:
+   - `git stash list` — anything you stashed earlier in the session?
+   - Compare `git status` output to your tool-call history (Edit / Write
+     calls) — files you didn't touch are not yours to commit.
+   - When uncertain, leave the file untouched and note it in the
+     handover doc under "Ambient dirty state (not committed)".
+
+   Only commit files you affirmatively edited this session. Other
+   agents, IDE plugins, or the user may have in-progress work in the
+   same checkout. Wrongly committing their state is worse than leaving
+   it dirty.
+
+3. **If your uncommitted changes exist:**
    - Group related changes into logical commits
    - Use conventional commit format
    - Don't batch unrelated changes
    - Each commit should be atomic and reviewable
 
-3. **If commits need pushing:**
+4. **DO NOT push by default.** Pushing requires **explicit authorization
+   from the user for THIS session**. Acceptable signals:
+   - User said "push" or "push to remote" earlier in the session
+   - The project's CLAUDE.md / AGENTS.md explicitly allows autopush
+   - User invoked handover with "push" in the args (e.g. `/handover push`)
+
+   If any of those:
    ```bash
    git log --oneline origin/main..HEAD
    git push
    ```
+   Verify with `git log origin/main..HEAD` (should show 0 commits after).
 
-4. **Document commit summary:**
+   Otherwise: list unpushed commits in the handover doc and explicitly
+   note "PUSHED: no — awaits user authorization." That's a normal,
+   expected end-state for a session.
+
+5. **Document commit summary:**
    ```
    COMMITS THIS SESSION:
    - <hash> <message>
    - <hash> <message>
-   PUSHED: yes | no | N/A
+   PUSHED: yes | no — awaits user authorization | N/A
+   AMBIENT DIRTY (not committed):
+   - <file> — <why I left it: not mine, user WIP, etc.>
    ```
 
 **If work is incomplete and shouldn't be committed:**
@@ -141,10 +172,30 @@ This skill ensures continuity across instances. The next Claude picking up this 
 - **<topic>:** <why this needs architectural documentation>
 ```
 
-**Write the learnings:**
-- Append to CLAUDE.md if project-specific
-- Append to ~/.claude/MEMORY.md if cross-project
-- Note skill updates for later (or apply if time permits)
+**Write the learnings — routing priority (check in order):**
+
+1. **Auto-memory infrastructure**: if `~/.claude/projects/<encoded-cwd>/memory/`
+   exists, this is the project's structured memory directory. Each
+   memory is its own `.md` file with frontmatter (`name`, `description`,
+   `type` ∈ {user, feedback, project, reference}); `MEMORY.md` is the
+   one-line index. Write here for project-specific facts that should
+   persist across sessions. The encoded cwd replaces non-alphanumeric
+   chars with `-` (e.g. `/Users/me/proj` → `-Users-me-proj`).
+2. **Project CLAUDE.md / AGENTS.md**: if no auto-memory dir, append to
+   the project's CLAUDE.md or AGENTS.md (repo root). Project-checked-in
+   instructions for any future instance working in this repo.
+3. **Cross-project ~/.claude/MEMORY.md**: only for patterns that
+   genuinely apply across projects. Don't pollute it with project-local
+   facts.
+4. **ADR**: if the insight is architectural and warrants ratification
+   (not just a fact), draft an ADR rather than a memory.
+
+If unsure which applies, **check whether the auto-memory dir exists
+first** — its presence indicates the user has explicit infrastructure
+and writes there are first-class.
+
+- Note skill updates for later (or apply if time permits via the
+  `expansion:skill-update` meta-skill)
 
 ### Phase 4: Handover Document
 
@@ -193,6 +244,22 @@ This skill ensures continuity across instances. The next Claude picking up this 
 ## Resume Instructions
 1. <First thing to do>
 2. <Second thing to do>
+
+## Calibration moments (optional but recommended)
+
+A compressed table of "things that surprised me" from this session, each
+mapped to a one-line lesson. Future-you (or the next instance) can scan
+it in 30 seconds and internalize what NOT to do. Skip if the session was
+routine maintenance with no surprises.
+
+| Moment | Lesson |
+|---|---|
+| <specific thing that went sideways or required course-correction> | <one-line takeaway> |
+
+Example rows from real sessions:
+| Tried to fix bug X without live repro | §2-not-TBD is a hard rule, not a suggestion |
+| Re-read claim mid-investigation, found I'd drifted | Re-read verbatim claim after every architectural decision |
+| Auto-mode classifier blocked a novel script | Show contents inline (cat) before running unfamiliar scripts |
 
 ---
 *Handover by Claude instance at <context_usage>% context*
