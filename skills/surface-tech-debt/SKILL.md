@@ -2,7 +2,7 @@
 name: Surface Tech Debt
 description: Systematic codebase review for technical debt - pattern conflicts, test gaps, band-aid fixes, security issues, and documentation holes. Use after rapid development sprints or before major refactors.
 when_to_use: when user says "tech debt", "review codebase", "what needs cleanup", "surface issues", "code health", or after a period of rapid development
-version: 1.0.0
+version: 1.3.0
 ---
 
 # Surface Tech Debt
@@ -11,7 +11,7 @@ version: 1.0.0
 
 High-velocity development accumulates debt. This skill performs a systematic sweep across five dimensions of technical health, surfacing issues that compound over time. The goal isn't to fix everything — it's to make the debt **visible** so you can prioritize.
 
-**Announce at start:** "Running tech debt surface scan across 5 dimensions: patterns, tests, band-aids, security, and documentation."
+**Announce at start:** "Running tech debt surface scan across 7 dimensions: patterns, tests, band-aids, security, documentation, monolith growth, and complexity spirals."
 
 ## When to Use
 
@@ -21,7 +21,7 @@ High-velocity development accumulates debt. This skill performs a systematic swe
 - Periodic hygiene (monthly/quarterly review)
 - After discovering a bug that "shouldn't have happened"
 
-## The Five Dimensions
+## The Seven Dimensions
 
 ### Dimension 1: Pattern Conflicts
 
@@ -130,8 +130,8 @@ grep -rn "if .* is None:" --include="*.py" | cut -d: -f3 | sort | uniq -c | sort
 # Find timeout band-aids
 grep -rn "timeout" --include="*.py" | grep -i "increase\|bump\|raise"
 
-# Find silent exception handling
-grep -rn "except.*:" --include="*.py" -A1 | grep -E "pass$|log\.(debug|info)"
+# Find silent exception handling (exclude .venv)
+grep -rn "except.*:" --include="*.py" -A1 | grep -v "\.venv" | grep -E "pass$|log\.(debug|info)"
 
 # Find repeated string manipulation
 grep -rn "\.split\(" --include="*.py" | cut -d: -f1 | sort | uniq -c | sort -rn | head -5
@@ -170,8 +170,8 @@ EFFORT: trivial | moderate | significant | architectural
 
 **Search patterns:**
 ```bash
-# Command injection vectors
-grep -rn "subprocess\|os.system\|os.popen" --include="*.py"
+# Command injection vectors (exclude .venv)
+grep -rn "subprocess\|os.system\|os.popen" --include="*.py" | grep -v "\.venv"
 
 # SQL injection (raw queries with f-strings)
 grep -rn 'execute.*f"' --include="*.py"
@@ -243,11 +243,190 @@ IMPACT: <what goes wrong without this doc>
 ACTION: <write ADR | delete TODO | add constant | update comment>
 ```
 
+### Dimension 6: Monolith Growth
+
+**Goal:** Catch files that have grown too large and need splitting before they become unmaintainable.
+
+**Why this matters:** Monoliths get split, then regrow. Without automated detection, you only notice when it's painful again.
+
+**Thresholds:**
+
+| LOC | Status | Action |
+|-----|--------|--------|
+| >300 | Warning | Consider splitting |
+| >500 | Alert | Must split before adding more |
+| >800 | Critical | Stop — split first |
+
+**What to look for:**
+
+| Pattern | Signal | Problem |
+|---------|--------|---------|
+| Growing server files | `web_server.py`, `app.py` at 500+ LOC | Should be bootstrap only |
+| Agent monoliths | Single agent file doing client + processing + state | Split by responsibility |
+| God components | React component at 1000+ LOC | Extract sub-components |
+| Route sprawl | Routes mixed with business logic | Routes should be thin |
+| Config accumulation | Config file doing validation + parsing + defaults | Split concerns |
+
+**Search patterns:**
+```bash
+# Find large Python files (Unix/Mac)
+find . -name "*.py" -not -path "*/test*" -not -path "*/__pycache__/*" -not -path "*/.venv/*" -not -path "*/node_modules/*" | \
+  xargs wc -l | sort -rn | head -20
+
+# Find large TypeScript/React files
+find . -name "*.tsx" -o -name "*.ts" | grep -v node_modules | \
+  xargs wc -l | sort -rn | head -20
+
+# Cross-platform: Check specific known-risk files directly (works on Windows)
+# Adapt paths to your project structure:
+wc -l agents/web_server.py agents/beeper_ingestion_agent.py core/reprocessing_worker.py
+wc -l indras-ui/src/App.tsx indras-ui/src/ExecutionPane.tsx
+
+# Find routes defined outside route files (exclude .venv)
+grep -rn "@app\.\|@router\." --include="*.py" | grep -v "/routes/" | grep -v "\.venv"
+```
+
+**IMPORTANT:** Always exclude `.venv/`, `node_modules/`, and `__pycache__/` from scans to avoid noise from dependencies.
+
+**Route organization check:**
+- New API endpoints should go in `agents/routes/<domain>.py`
+- `web_server.py` should only do: app setup, middleware, mount routers
+- If routing logic is in the main server file, flag it
+
+**Output format:**
+```
+MONOLITH: <filename>
+LOC: <count> (threshold: <which threshold exceeded>)
+LAST SPLIT: <date if known, or "never">
+GROWTH SINCE: <LOC added since last check, if trackable>
+SUGGESTED SPLIT:
+  - <component 1> → <new file>
+  - <component 2> → <new file>
+EFFORT: trivial | moderate | significant
+```
+
+**Tracking growth over time:**
+If `docs/indrasnet/ISSUES_AND_GAPS.md` exists, check the "Monoliths to Split" section and compare current LOC to documented LOC.
+
+**Growth Detection Protocol:**
+For each file over threshold:
+1. **If in ISSUES_AND_GAPS.md:** Compare current LOC to documented LOC
+   - Flag if >20% growth (regression detected)
+   - Update the documented LOC after scan
+2. **If NOT in ISSUES_AND_GAPS.md:** Flag as "NEW MONOLITH - not tracked" (high priority)
+   - Add to the tracking doc immediately
+
+**Growth output format:**
+```
+GROWTH: beeper_ingestion_agent.py
+DOCUMENTED: 1222 LOC (ISSUES_AND_GAPS.md)
+CURRENT: 2704 LOC
+DELTA: +1482 (+121% growth) ← 🔴 CRITICAL REGRESSION
+
+NEW MONOLITH: reprocessing_worker.py
+LOC: 1750 (threshold: 800 CRITICAL)
+STATUS: Not in ISSUES_AND_GAPS.md — add to tracking!
+```
+
+### Dimension 7: Complexity Spirals
+
+**Goal:** Find places where the original problem was simple, but instead of fixing the root cause, layers of compensating mechanisms accumulated. Each layer often defends against bugs in the previous layer. The codebase grows by addition where it should have grown by replacement.
+
+**The diagnostic question:** *"If I deleted N of these layers, would anything actually break?"*
+
+**The discipline:** Before adding any new defensive mechanism, try to **delete two existing ones** first. If you can't delete two, you don't understand the problem yet.
+
+**Patterns to look for:**
+
+| Spiral Type | Smell | Real Fix |
+|---|---|---|
+| Multiple recovery paths | Boot task + watchdog + auto-restart + port guard + retry loops, all "making sure X runs" | Pick one supervisor, delete the others |
+| Dead module shims | `foo.py` (file) AND `foo/` (package) both exist; `.py` is "for compat" but every internal caller updated | Update imports, delete the shim |
+| Dead replaced code | Old impl kept "in case" — zero importers, zero callers | `git rm` the file |
+| Dual stores for same domain | JSON contacts AND SQLite contacts; settings in env AND yaml AND DB | Migrate callers to one, delete the other |
+| Defensive checks for impossible states | `if x is None` scattered everywhere because upstream contract is unclear | Fix the upstream contract, delete the defenses |
+| Wrappers around wrappers | A→B→C→D, each with try/except + default | Inline the layers, delete try/except where the failure can't actually happen |
+| Config fallback chains repeated N times | `get_setting(X) or os.getenv(Y, "literal default")` copy-pasted in 6+ places | One helper function, called everywhere |
+| Timeout band-aids | "Fixed by raising timeout to 600s" — multiple times, never fixing the slow thing | Profile and fix the slow thing |
+
+**Search patterns:**
+
+```bash
+# Stub/shim files: a .py file AND a directory of the same name (likely a refactor that left scaffolding)
+find . -name "*.py" -not -path "*/.venv/*" -not -path "*/__pycache__/*" | while read f; do
+  base="${f%.py}"
+  if [ -d "$base" ]; then
+    lines=$(wc -l < "$f")
+    if [ "$lines" -lt 200 ]; then
+      echo "SHIM CANDIDATE: $f ($lines lines) coexists with package $base/"
+    fi
+  fi
+done
+
+# Repeated config fallback chains (same default copy-pasted)
+grep -rn 'get_setting.*or os\.getenv' --include="*.py" | head -20
+grep -rn 'os\.getenv.*"http://localhost' --include="*.py" | sort | uniq -c | sort -rn | head -10
+
+# Multiple "make sure X runs" mechanisms — look for restart/watchdog/supervisor/recover keywords
+grep -rln "watchdog\|restart_server\|auto_restart\|crash_count\|MAX_RESTART" --include="*.py" --include="*.bat" --include="*.ps1"
+
+# Dead modules: count imports of modules that look "deprecated"
+for module in privacy_filter privacy_engine privacy_transformer; do
+  count=$(grep -rn "from.*$module\|import $module" --include="*.py" | grep -v "$module.py\|$module/" | wc -l)
+  echo "$module: $count importers"
+done
+
+# Defensive None checks — by file, sorted (high count = upstream contract unclear)
+grep -rn "if.*is None" --include="*.py" | cut -d: -f1 | sort | uniq -c | sort -rn | head -10
+```
+
+**The upstream question:** For each spiral, ask:
+- What was the ORIGINAL problem (one sentence)?
+- How many layers exist now?
+- Which layer would break if removed? (often: none)
+- What's the smallest delete that consolidates them?
+
+**Output format:**
+```
+COMPLEXITY SPIRAL: <one-sentence description>
+ORIGINAL PROBLEM: <what we were actually trying to solve>
+LAYERS NOW (N):
+  1. <file:line> — <what it does>
+  2. <file:line> — <what it does, often defending against #1's bug>
+  3. <file:line> — ...
+DELETE PROPOSAL: <which N-1 layers to remove, what survives>
+LOC RECLAIMED: ~<estimate>
+RISK: low | medium | high (when in doubt, low — the layers were never load-bearing)
+```
+
+**Worked examples (real findings from the IndrasNet codebase):**
+
+1. **5-layer server-restart spiral.** Original problem: "make sure web_server on port 7777 stays up." Layers: (a) Boot Task Scheduler entry, (b) every-5-min Watchdog Task with broken `Get-Process` cleanup, (c) `start_all.py` exponential-backoff auto-restart, (d) `start.bat` port-busy guard, (e) `web_server`'s own `check_single_instance` PID file. Reduced to 3 by deleting the watchdog (113 LOC + 1 task). The watchdog was "defending against" failures that didn't exist; its own bugs caused the duplicate-launch incident that prompted its rewrite.
+
+2. **5+ shim files for refactored packages.** Original problem: "split monolith into a package." Resolution: re-export shim left in place (`web_server.py` → `web_server/`, `media_router.py` → `media_router/`, `context_assembler.py` → `context_assembler/`, `media_transcription.py` → `media_transcription/`, `auth.py` → `auth/`). Each shim says "DEPRECATED" but every internal caller still imports through it. Real fix: update imports, `git rm` the shim.
+
+3. **3 dead privacy modules.** Original problem: "redact private content." `privacy_filter.py` (308 LOC, 0 callers), `privacy_engine.py` (rarely called), `privacy_transformer.py` (different concern entirely). All three exist because each "replaced" the previous without deleting it. Real fix: pick the one in active use, delete the rest.
+
+4. **Beeper URL config repeated 6×.** Original problem: "where do we read the Beeper URL from?" Pattern `get_setting("beeper_api_url") or os.getenv("BEEPER_URL", "http://localhost:23374")` copy-pasted in 6 files. If the default changes, you edit 6 places. Real fix: one `get_beeper_config()` helper, ~20 LOC of duplication eliminated.
+
+5. **Dual contact stores.** JSON-backed `core/contacts.py` (privacy paths) and SQLite `core/db/contacts.py` (everything else). Privacy decisions and prayer routing operate on potentially divergent contact data — same name, different tier in each store. Real fix: migrate the 3 privacy callers to the SQLite version, delete `core/contacts.py` and `config/contacts.json`.
+
+**Anti-pattern to recognize in yourself when designing fixes:**
+
+You discover bug X in layer 3. Tempting fix: add layer 4 to detect bug X and work around it. **Stop.** Better questions:
+- Why does layer 3 exist? Does it solve a problem, or just defend against layer 2?
+- If layers 2 and 3 disappeared, what would actually break?
+- Can the bug be eliminated by deleting layers, not adding them?
+
+**Often the right answer is the smallest one:** delete the broken thing rather than fix it. If `start_all.py`'s built-in restart is sufficient for crash recovery, the watchdog's reason to exist disappears — fixing the watchdog's CIM detection misses the real question.
+
+---
+
 ## Process
 
 ### Phase 1: Automated Scan
 
-Run searches across all five dimensions. Use grep, find, and static analysis to surface candidates. This should take 5-10 minutes.
+Run searches across all seven dimensions. Use grep, find, and static analysis to surface candidates. This should take 5-10 minutes.
 
 **Don't analyze everything — collect raw signals.**
 
@@ -273,6 +452,11 @@ Present findings in priority order with actionable next steps.
 - **Band-Aids:** N fixes that need upstream resolution
 - **Security:** N issues (M high/critical)
 - **Documentation:** N missing ADRs, M stale TODOs
+- **Monoliths:** N files over threshold
+  - 🔴 CRITICAL (>800 LOC): M files
+  - 🟡 ALERT (>500 LOC): N files
+  - ⚪ WARNING (>300 LOC): O files
+- **Complexity Spirals:** N spirals (M with 4+ layers — top priority for deletion)
 
 ## Critical Items (Fix This Sprint)
 1. <issue> — <1-line description> — <effort>
@@ -302,6 +486,12 @@ Present findings in priority order with actionable next steps.
 
 ### Documentation Gaps
 <detailed findings>
+
+### Monolith Growth
+<detailed findings>
+
+### Complexity Spirals
+<detailed findings — for each spiral list the layers + delete proposal>
 
 ---
 
@@ -342,12 +532,14 @@ Present findings in priority order with actionable next steps.
 
 ## Checklist
 
-- [ ] Ran automated scans across all 5 dimensions
+- [ ] Ran automated scans across all 6 dimensions
 - [ ] Triaged findings by severity and effort
 - [ ] Identified top 3-5 items per dimension
 - [ ] For each band-aid, asked "where's the upstream fix?"
 - [ ] Checked ADR coverage for major features
 - [ ] Flagged security issues with severity ratings
+- [ ] Checked file sizes against LOC thresholds (300/500/800)
+- [ ] Compared monolith sizes to ISSUES_AND_GAPS.md (if exists)
 - [ ] Produced prioritized report with actionable items
 - [ ] Created tracking issues for items to address
 
