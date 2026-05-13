@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Handover
@@ -14,6 +14,15 @@ You are about to lose this context. Whether due to compaction, session end, or c
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
 **Announce at start:** "Running handover — committing work, documenting threads, and capturing learnings for the next instance."
+
+## Related Skills
+
+Handover focuses on session-state preservation. Two adjacent skills handle downstream concerns:
+
+- **`/meta-update` (or `/mu`)** — Updates `~/.claude/CLAUDE.md` with cross-project protocol learnings extracted from this session. Run AFTER handover when you've noticed corrections, new patterns, or protocol gaps.
+- **`/expansion:skill-update`** — Updates THIS or any other skill based on friction encountered while using it. Run when the skill's instructions didn't quite cover your situation.
+
+Typical end-of-session flow: `/handover` → `/mu` → `/expansion:skill-update` (only the first is always relevant; the latter two are conditional).
 
 ## When to Trigger
 
@@ -254,6 +263,11 @@ and writes there are first-class.
 - `<hash>` <message>
 - `<hash>` <message>
 
+## ADRs Written / Updated This Session
+- **ADR-NNN: <title>** — <one-line summary>
+
+(Omit section if none.)
+
 ## Pending Threads
 
 ### Continue Immediately
@@ -301,6 +315,14 @@ Example rows from real sessions:
 ---
 *Handover by Claude instance at <context_usage>% context*
 ```
+
+### If HANDOVER.md already exists
+
+The git-tracked option (Option B) is a single-document-per-repo pattern: each session's handover REPLACES the previous one. The previous handover's value lives in git history; the file always reflects the latest session.
+
+Before overwriting:
+- Skim the previous handover for items still pending (carry them forward into the new doc's "Continue Immediately" or "Deferred" sections)
+- Don't lose context that's still relevant — bring it forward explicitly
 
 ## Automatic Hook Integration
 
