@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Handover
@@ -96,16 +96,16 @@ This skill ensures continuity across instances. The next Claude picking up this 
 
 ### Phase 2: Thread Inventory
 
-**Goal:** Document every open thread so the next instance knows what's pending.
+**Goal:** Document **every open thread** the next instance might pick up — not just session-local TODOs. A handover doc that only captures "things we discussed today" leaves the next instance blind to anything the project has been carrying for weeks. Long-lived projects accumulate deferred state; surface it.
 
-**Scan for:**
+**Scan for (in this order):**
 
 1. **Explicit TODOs from this session**
    - User requests not yet completed
    - Errors encountered but not resolved
    - Features partially implemented
 
-2. **Implicit threads**
+2. **Implicit threads from this session**
    - Investigations started but not concluded
    - Patterns noticed but not addressed
    - Questions raised but not answered
@@ -118,6 +118,32 @@ This skill ensures continuity across instances. The next Claude picking up this 
 4. **Background tasks**
    - Running processes (check with `tasklist` or background task IDs)
    - Scheduled operations pending
+
+5. **Documented deferred state from prior sessions** — the bulk of a long-running project's pending work. Read these before declaring the inventory complete:
+   - **Prior `docs/HANDOVER.md`** (if it exists) — anything in its "Deferred" section that hasn't been resolved is still deferred.
+   - **`docs/adr/*.md`** — ADR headers often list "deferred sections" (e.g., "§F2.6 Aperture controls — not built"). These are commitments the project has acknowledged but not delivered.
+   - **`docs/roadmap.md`** — phase items still listed as "not started" or "deferred."
+   - **`docs/architecture/*.md`** — "open code-debt items" and "what's deferred" sections.
+   - **Prior audit reports** (e.g., from `doc-audit` skill) — P2/P3 findings that weren't acted on.
+   - **README candidates lists** (`docs/proofs/README.md`, `docs/modules/README.md`) — "candidates worth writing" stubs.
+   - **`canvas.md`-style "open questions" sections** in any architecture doc.
+
+6. **Explicit decisions NOT to do** — items considered and deliberately skipped. Capture these separately so a future instance doesn't waste a turn re-proposing them.
+
+**Long lists: categorize.** If the inventory has more than ~10 items, a flat list becomes unscannable. Group by axis the next instance actually cares about — typical categories:
+
+   - Out-of-scope / blocked by architecture
+   - Magical features (1-2 day each, real UX impact)
+   - Small wins (30 min – 1h each, friction-removing)
+   - Test-coverage gaps
+   - Architecture cleanup (low urgency)
+   - Documentation gaps
+   - Vision / roadmap items
+   - ADR-deferred sections
+   - Cross-cutting open questions
+   - Explicit decisions NOT to do
+
+A short table per category beats one mega-list of 30 rows.
 
 **Output format:**
 ```
@@ -135,10 +161,21 @@ This skill ensures continuity across instances. The next Claude picking up this 
    - Blocked on: <what we're waiting for>
    - Resume when: <condition>
 
-### Deferred (Acknowledged but Parked)
-1. **<thread name>**
-   - Why deferred: <reason>
-   - Revisit: <when/trigger>
+### Deferred (Acknowledged but Parked) — exhaustive
+<If ≤10 items: flat list. If more: categorize.>
+
+#### <Category, e.g. "Small wins">
+| Item | Why deferred / sketch |
+|---|---|
+| ... | ... |
+
+#### <Category, e.g. "Vision modes">
+| ... | ... |
+
+### Explicit Decisions NOT to Do
+| Item | Why skipped |
+|---|---|
+| ... | <so future instances don't re-litigate> |
 ```
 
 ### Phase 3: Session Learnings
@@ -225,8 +262,8 @@ and writes there are first-class.
 ### Blocked
 1. **<thread>** — waiting on <X>
 
-### Deferred
-1. **<thread>** — parked because <reason>
+### Deferred (exhaustive — see Phase 2 for scan sources)
+<If ≤10 items keep flat; otherwise categorize.>
 
 ## Key Context
 <Non-obvious information the next instance needs>
@@ -360,14 +397,17 @@ If session spanned multiple repos:
 | Forget background processes | Always check and document |
 | Skip learnings phase | This is how you improve over time |
 | Write handover doc but don't commit it | Uncommitted docs don't survive |
+| Document only this-session TODOs | Scan documented deferred state too — prior HANDOVER, ADRs, roadmap, architecture docs, audit reports. A new instance shouldn't have to re-discover what the project has been carrying for weeks. |
+| Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
 
 ## Checklist
 
 - [ ] Checked git status across all touched repos
 - [ ] Committed all changes (or stashed with clear message)
 - [ ] Pushed commits (or noted why not)
-- [ ] Inventoried all pending threads
-- [ ] Classified threads: active / blocked / deferred
+- [ ] Inventoried all pending threads — scanned BOTH session-local TODOs AND documented deferred state (prior HANDOVER, ADRs, roadmap, architecture docs, audit reports, README "candidate" lists)
+- [ ] Classified threads: active / blocked / deferred; categorized deferred if >10 items
+- [ ] Captured "explicit decisions NOT to do" so they don't get re-proposed
 - [ ] Captured session learnings
 - [ ] Updated CLAUDE.md with project insights
 - [ ] Updated MEMORY.md with cross-project learnings
@@ -378,6 +418,8 @@ If session spanned multiple repos:
 - [ ] Provided specific resume instructions
 
 ## Example Handover
+
+*This example is deliberately short — a quiet session with a few session-local items. Real handovers on long-running projects often have 20+ deferred items pulled from prior HANDOVERs, ADRs, roadmap, and audit reports; in that case the Deferred section should be categorized (see Phase 2 → "Long lists: categorize") rather than a flat list.*
 
 ```markdown
 # Handover: 2026-02-11 21:00
