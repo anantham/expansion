@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Handover
@@ -33,7 +33,61 @@ Typical end-of-session flow: `/handover` → `/mu` → `/expansion:skill-update`
 | Auto (hook): 90% context capacity | Pre-compaction preservation |
 | Manual: Before switching tasks | Context pivot coming |
 
-## The Four Phases
+## The Phases
+
+### Phase 0: Triage by Marginal Value
+
+**Goal:** Before running the mechanical checklist, identify what THIS
+dying context can produce that future sessions cannot.
+
+Conversation logs (JSONL) are local — they don't survive into next
+session. The reasoning trajectory in your head — *why* decisions were
+made, *what was considered and rejected*, *which patterns emerged* —
+vanishes hardest. Some of that synthesis genuinely cannot be reproduced
+by a fresh agent reading the diff.
+
+**Three triage questions:**
+
+1. **What can I produce *only* with the session-specific reasoning
+   trace I still have in head?**
+   (Principles distilled from the work, patterns spotted, decisions
+   considered-and-rejected, rationale narratives, project-memory
+   entries, the *why* behind specific commits)
+
+2. **Of those, which are high-leverage** — generalize beyond this
+   session, inform multiple future decisions, capture an insight
+   nobody else has yet, or compound across sessions?
+
+3. **What's worth the marginal context-spend?**
+   Context is finite and dropping fast. Spend it on captures that
+   will be expensive or impossible to reproduce later; defer anything
+   mechanical that next session can do from clear instructions.
+
+**Triage matrix:**
+
+| Do NOW (this dying context) | Defer to next session |
+|---|---|
+| Principles + anti-patterns ratified by lived experience | Routine commits, branch cleanups |
+| Patterns / methods discovered during work | Code the next agent can write from instructions |
+| Rich handover narrative with the *why* | Single-file refactors with clear specs |
+| Project / cross-project memory entries | Continuation of the work you're handing over |
+| Decision rationale that won't survive diff alone | Anything blocked on user input |
+
+**Anti-patterns in this phase:**
+- Continuing the work you're handing over (that's what handover ends)
+- Speculative captures ahead of demonstrated need (Phantom Consumer)
+- Captures that need more from the user than they can give right now
+
+**Propose your captures to the user before executing** so they can
+prune or redirect. The user often has better marginal-value judgment
+than the exhausted-context model running on fumes. A brief proposal
+("Here's what I think is worth doing with remaining context, what
+should I drop?") respects both their attention and the residual
+context budget.
+
+After triage and user approval, proceed with Phases 1-4 — those are
+the mechanical scaffold. **Phase 0 is what makes the handover
+signal-dense rather than merely complete.**
 
 ### Phase 1: Commit Checkpoint
 
