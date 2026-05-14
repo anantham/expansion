@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Handover
@@ -208,6 +208,22 @@ signal-dense rather than merely complete.**
 
 A short table per category beats one mega-list of 30 rows.
 
+**EXHAUSTIVENESS CHECKLIST** (binding — Phase 2 is NOT complete until each row is honestly answered):
+
+This is a SECONDARY auditing pass *after* the scan-for items + categorization. The scan-for list catches categories; this checklist catches the specific failure modes that bypass categories.
+
+- [ ] Every file modified this session → what unresolved follow-up does it imply? (e.g., new dependency without consumer, modified config without doc update, partial feature with a stub)
+- [ ] Every new dependency / API key / env var introduced → matched consumer in committed code? Or orphan? Orphans become threads.
+- [ ] Every doc file (README, CONVENTIONS, design docs, ADRs) touched-adjacent → still accurate, or now stale relative to the new code?
+- [ ] Every operator-manual workflow exercised (not just shipped code) → operator burden made explicit for next session?
+- [ ] Every "we discussed but didn't ship" idea → captured as a thread, not silently dropped because it didn't make it to code?
+- [ ] Every commit message containing "TODO" / "XXX" / "FIXME" → promoted to a thread?
+- [ ] Every test added with `pytest.mark.skip` / `xfail` / similar → captured as a thread with the unblock condition?
+- [ ] Every external account / cookie / persistent context modified by automation → operator cleanup step documented?
+- [ ] Every prior-handover thread in the "Deferred" section → resolved this session, still deferred, or obsoleted? Never silently drop.
+
+If any row is unchecked, Phase 2 is incomplete. **Optimize the thread list for operational completeness, NOT for prose quality.** The narrative arc lives in the Session Summary in Phase 4; the threads list lives for the next instance's worklist. See anti-pattern "Silent Omission via Conciseness" below.
+
 **Output format:**
 ```
 ## Pending Threads
@@ -310,8 +326,9 @@ and writes there are first-class.
 ```markdown
 # Handover: <date> <time>
 
-## Session Summary
-<2-3 sentences: what was accomplished, what's the current state>
+## Session Summary (narrative — for humans skimming)
+<2-3 sentences: what was accomplished, what's the current state.
+Optimize for readability; this is the elevator pitch.>
 
 ## Commits This Session
 - `<hash>` <message>
@@ -322,21 +339,40 @@ and writes there are first-class.
 
 (Omit section if none.)
 
-## Pending Threads
+## Pending Threads (enumeration — for the next instance's worklist)
+*EVERY pending item from this session AND every unresolved item from the
+prior handover / ADRs / roadmap. Aim for completeness over compression.
+The narrative lives above; this is the operational inventory. If this
+section feels short relative to the session length, re-run the Phase 2
+EXHAUSTIVENESS CHECKLIST before declaring complete.*
 
 ### Continue Immediately
-1. **<thread>** — <next step>
+1. **<thread>** — <next step + relevant files + non-obvious context>
 
 ### Blocked
-1. **<thread>** — waiting on <X>
+1. **<thread>** — waiting on <X>; resume when <condition>
 
 ### Deferred (exhaustive — see Phase 2 for scan sources)
 <If ≤10 items keep flat; otherwise categorize.>
+
+### Carried forward from prior handover
+1. **<thread>** — original handover line; current status (resolved / still pending / obsoleted by <X>)
 
 ## Key Context
 <Non-obvious information the next instance needs>
 - <context item>
 - <context item>
+
+## Operator Cleanup (manual steps for the human)
+*Anything the user needs to do manually that automation didn't handle —
+account state to clear, env vars to rotate, persistent browser contexts
+to wipe, files to delete, external services to check, etc. If automation
+modified state outside the repo, name it here.*
+
+- <e.g., "Clear Custom Instructions in chatgpt.com/settings/Personalization on the avalokai account — currently set to <persona> for trajectory work">
+- <e.g., "Wipe ~/.atlas/browser-state/<site>/ if you want to start fresh">
+
+(Omit section if no manual steps required.)
 
 ## Learnings Captured
 - [x] Added to CLAUDE.md: <what>
@@ -475,6 +511,7 @@ If session spanned multiple repos:
 | Write handover doc but don't commit it | Uncommitted docs don't survive |
 | Document only this-session TODOs | Scan documented deferred state too — prior HANDOVER, ADRs, roadmap, architecture docs, audit reports. A new instance shouldn't have to re-discover what the project has been carrying for weeks. |
 | Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
+| **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
 
 ## Checklist
 
