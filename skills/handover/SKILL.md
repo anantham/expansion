@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Handover
@@ -72,6 +72,7 @@ by a fresh agent reading the diff.
 | Rich handover narrative with the *why* | Single-file refactors with clear specs |
 | Project / cross-project memory entries | Continuation of the work you're handing over |
 | Decision rationale that won't survive diff alone | Anything blocked on user input |
+| **Verbatim user quotes** with timestamps — directives in the user's own words; the JSONL is local-only and the /compact summary paraphrases lossily | Lossy paraphrases / "user wanted X" summarizations |
 
 **Anti-patterns in this phase:**
 - Continuing the work you're handing over (that's what handover ends)
@@ -221,6 +222,7 @@ This is a SECONDARY auditing pass *after* the scan-for items + categorization. T
 - [ ] Every test added with `pytest.mark.skip` / `xfail` / similar → captured as a thread with the unblock condition?
 - [ ] Every external account / cookie / persistent context modified by automation → operator cleanup step documented?
 - [ ] Every prior-handover thread in the "Deferred" section → resolved this session, still deferred, or obsoleted? Never silently drop.
+- [ ] Every user decision arc this session (scope-setting, redirect, ratification, "go ahead"-style authorization, "why" rationale) → captured as a **verbatim quote** with timestamp in Phase 4 doc? Paraphrase is not sufficient — the JSONL is local-only and the /compact summary strips cadence and specificity. The user's exact words are the grounding for every claim about what they wanted.
 
 If any row is unchecked, Phase 2 is incomplete. **Optimize the thread list for operational completeness, NOT for prose quality.** The narrative arc lives in the Session Summary in Phase 4; the threads list lives for the next instance's worklist. See anti-pattern "Silent Omission via Conciseness" below.
 
@@ -333,6 +335,24 @@ Optimize for readability; this is the elevator pitch.>
 ## Commits This Session
 - `<hash>` <message>
 - `<hash>` <message>
+
+## Verbatim user quotes (chronological — REQUIRED, not optional)
+*The conversation JSONL is local-only and will NOT survive into the next
+session. The /compact summary paraphrases lossily — it loses cadence,
+specific terminology, and the precise force of the user's redirects. The
+next instance has no way to verify a paraphrased "user wanted X" claim
+against what the user actually said. Capture the user's own words here,
+with timestamps, so every downstream decision in this handover has a
+grounded source.*
+
+*Scope: every decision arc — initial scope-setting, mid-session redirects,
+ratifications ("yes do that"), authorizations ("yep go ahead"), explicit
+NOT-to-do ("don't bother with X"), and any "why" rationale the user
+volunteered in their own framing. Group by arc if it helps readability.
+Extract from `~/.claude/projects/<encoded-cwd>/*.jsonl` if the session
+has been compacted.*
+
+- `<YYYY-MM-DDTHH:MM>` *"<exact verbatim quote, no editing>"* — <what this directed / ratified / blocked>
 
 ## ADRs Written / Updated This Session
 - **ADR-NNN: <title>** — <one-line summary>
@@ -512,6 +532,7 @@ If session spanned multiple repos:
 | Document only this-session TODOs | Scan documented deferred state too — prior HANDOVER, ADRs, roadmap, architecture docs, audit reports. A new instance shouldn't have to re-discover what the project has been carrying for weeks. |
 | Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
 | **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
+| **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
 
 ## Checklist
 
@@ -521,6 +542,7 @@ If session spanned multiple repos:
 - [ ] Inventoried all pending threads — scanned BOTH session-local TODOs AND documented deferred state (prior HANDOVER, ADRs, roadmap, architecture docs, audit reports, README "candidate" lists)
 - [ ] Classified threads: active / blocked / deferred; categorized deferred if >10 items
 - [ ] Captured "explicit decisions NOT to do" so they don't get re-proposed
+- [ ] **Captured verbatim user quotes** (timestamp + own words) for every decision arc — scope-setting, redirects, ratifications, authorizations, NOT-to-do, "why" rationale. JSONL is local-only and /compact paraphrases lossily; this is the only durable grounding for "what the user wanted."
 - [ ] Captured session learnings
 - [ ] Updated CLAUDE.md with project insights
 - [ ] Updated MEMORY.md with cross-project learnings
