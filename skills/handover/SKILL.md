@@ -3,6 +3,14 @@ name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
 version: 1.6.0
+changelog:
+  1.6.0 (2026-05-16): mandate verbatim user-quote capture — 5 surgical edits (Phase 0 triage matrix row, Phase 2 EXHAUSTIVENESS CHECKLIST row, Phase 4 template required section, anti-patterns table row, final checklist row). The conversation JSONL is local-only and /compact paraphrases lossily; verbatim quotes in the handover .md are the only durable grounding for "what the user wanted."
+  1.5.0 (2026-05-14): exhaustiveness checklist + name 'Silent Omission via Conciseness' anti-pattern. Added Phase 2 EXHAUSTIVENESS CHECKLIST (9 binding rows), explicit Carry-forward-from-prior-handover scan-for item, named anti-pattern, split Phase 4 template's Session Summary (narrative) from Pending Threads (enumeration). Plus 'Operator Cleanup' section in template.
+  1.4.0 (2026-05-14): Phase 0 — Triage by Marginal Value. Identify what THIS dying context can produce that future sessions cannot; propose captures to user before executing.
+  1.3.0 (2026-05-13): related-skills cross-ref (meta-update + skill-update), ADR section in template, overwrite guidance for existing HANDOVER.md, push-auth rule.
+  1.2.0 (2026-05-13): require exhaustive deferred-thread scan — read prior HANDOVER, ADRs, roadmap, architecture docs, audit reports, README "candidate" lists. Don't only document this-session TODOs.
+  1.1.0 (2026-05-13): empirical patches from LexiconForge load-test.
+  1.0.0 (2026-02-11): initial — graceful context transfer before compaction; PreCompact hook integration.
 ---
 
 # Handover
