@@ -2,7 +2,11 @@
 name: Canvas Diagrams
 description: Generate Obsidian Canvas (.canvas) files for UX flows, data flows, and testing infrastructure visualization
 when_to_use: when user asks to visualize architecture, flows, data pipelines, testing infrastructure, or says "canvas", "diagram", "flow chart", "visualize"
-version: 1.1.0
+version: 1.2.0
+changelog:
+  1.2.0 (2026-05-16): generalized Target Directory — replaced hardcoded "TemporalCoordination" project name with a 6-step MANDATORY project-folder-resolution algorithm (PascalCase derivation, mkdir-if-missing, dual-write to vault + repo). Reconciles drift: this content was edited directly in the deployed cache (2026-03-20) without a corresponding source-repo commit; v1.2.0 carries it back to source.
+  1.1.0 (prior): L3b data-field mapping, horizontal layout, discarded groups
+  1.0.0 (initial): canvas-diagrams skill — Obsidian Canvas generation for UX/data/testing flows
 ---
 
 # Canvas Diagrams
@@ -15,15 +19,26 @@ Generate Obsidian `.canvas` files that visually represent system architecture, u
 
 ## Target Directory
 
-```
-/Users/aditya/Library/CloudStorage/GoogleDrive-adityaprasadiskool@gmail.com/My Drive/Exocortex/Research/Projects/TemporalCoordination
-```
+**Vault base:** `/Users/aditya/Library/CloudStorage/GoogleDrive-adityaprasadiskool@gmail.com/My Drive/Exocortex/`
+
+**Projects root:** `Research/Projects/`
+
+**Project folder resolution (MANDATORY before writing any canvas):**
+
+1. Determine the current project name from the working directory or CLAUDE.md
+2. Derive a folder name: use PascalCase with no spaces (e.g., "Map TPOT" → `MapTPOT`, "Temporal Coordination" → `TemporalCoordination`)
+3. Check if `Research/Projects/<ProjectFolder>/` exists in the vault
+4. If it does NOT exist, create it: `mkdir -p "<vault_base>/Research/Projects/<ProjectFolder>/"`
+5. Write canvases to that folder
+6. Also write a copy to the project's own `docs/diagrams/` directory (version-controlled)
+
+**Two copies:** Canvases live in both the Exocortex vault (for Obsidian viewing) and the project repo (for git tracking). The vault copy is the primary viewing artifact; the repo copy ensures canvases survive if the vault is unavailable.
 
 **Naming convention:** `<type>-<scope>[-detail].canvas`
 
 Examples at each resolution:
 - `data-flow-overview.canvas` (system level)
-- `data-flow-prayer-pipeline.canvas` (subsystem level)
+- `data-flow-export-pipeline.canvas` (subsystem level)
 - `data-flow-context-assembly.canvas` (function level)
 
 ## Resolution Levels
@@ -74,7 +89,7 @@ Examples at each resolution:
 - Edges connect between the embed nodes
 
 **Vault-relative paths** (from Exocortex vault root):
-- `Research/Projects/TemporalCoordination/<filename>.canvas`
+- `Research/Projects/<ProjectFolder>/<filename>.canvas`
 
 ## Canvas Types
 
