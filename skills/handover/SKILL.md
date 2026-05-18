@@ -2,8 +2,9 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.6.1
+version: 1.7.0
 changelog:
+  1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
   1.6.1 (2026-05-16): patch — announce-at-start now includes the version string for self-identification on invocation. Users had no easy way to verify which skill version was loaded vs cached. Reads the `version:` field above; replace `<version>` literally with that value.
   1.6.0 (2026-05-16): mandate verbatim user-quote capture — 5 surgical edits (Phase 0 triage matrix row, Phase 2 EXHAUSTIVENESS CHECKLIST row, Phase 4 template required section, anti-patterns table row, final checklist row). The conversation JSONL is local-only and /compact paraphrases lossily; verbatim quotes in the handover .md are the only durable grounding for "what the user wanted."
   1.5.0 (2026-05-14): exhaustiveness checklist + name 'Silent Omission via Conciseness' anti-pattern. Added Phase 2 EXHAUSTIVENESS CHECKLIST (9 binding rows), explicit Carry-forward-from-prior-handover scan-for item, named anti-pattern, split Phase 4 template's Session Summary (narrative) from Pending Threads (enumeration). Plus 'Operator Cleanup' section in template.
@@ -32,6 +33,35 @@ Handover focuses on session-state preservation. Two adjacent skills handle downs
 - **`/expansion:skill-update`** — Updates THIS or any other skill based on friction encountered while using it. Run when the skill's instructions didn't quite cover your situation.
 
 Typical end-of-session flow: `/handover` → `/mu` → `/expansion:skill-update` (only the first is always relevant; the latter two are conditional).
+
+## Available cross-project affordances
+
+Before writing or recommending a new utility, check **`~/Documents/Ongoing Local/AFFORDANCES.md`** — it's the lean, hand-curated registry of tools that already exist across the user's projects. If the next instance might benefit from one of these, surface it in the handover's *Key Context* section.
+
+Currently registered (subject to drift — grep AFFORDANCES.md for the live list):
+
+- **Browser automation against logged-in frontier-model accounts** (Gemini / ChatGPT / Claude.ai / Grok with their real cookies). Use for Deep Research runs, image generation, paid-feature access, or anything that requires the user's actual account on a frontier model.
+  - GEO's Python provider (`~/Documents/Ongoing Local/GEO/runner/atlas_runner/browser_chat.py`) — robust class-based pattern.
+  - LexiconForge's concrete script (`~/Documents/Ongoing Local/LexiconForge/scripts/gemini_research.py`) — minimal CLI: prompt file → Gemini response markdown file. Persistent state at `~/.atlas/browser-state/gemini.google.com/`. Drop-in invocable.
+- **Scheduled recurring tasks** via `TemporalCoordination/scheduled_tasks/` plugin-based runner — for backups, vault maintenance, journal carryover, metric collection. Config-driven `daily:HH:MM` / `interval:Nh` schedules.
+
+If a session-relevant affordance was used or could have been used, mention it in **Key Context** with a one-line "next instance: see `<path>` for `<problem>`" pointer. Don't duplicate AFFORDANCES.md content — the pointer is enough.
+
+## Ask the human when blocked (binding)
+
+Handover itself is a context-spending act. Don't burn dying context trying to recover from blockers solo.
+
+When you encounter ANY of the following during handover, **stop and ask the user** in one sentence rather than fabricating, guessing, or paving over:
+
+- **Permission denied** during a file write, tool invocation, or browser action (do NOT write a placeholder file with fabricated content; report the block).
+- **Missing file or directory** at a path the protocol expects (e.g., `docs/HANDOVER.md` location, an ADR directory).
+- **Ambiguous prior handover** — if `Carried forward from prior handover` items are vague and the current state doesn't disambiguate, ask which interpretation is current.
+- **Conflicting signals** — e.g., a thread is "Active" in your head but the commit history shows it was abandoned; verify with the user before re-listing it.
+- **Tool unavailability** — if a deferred tool you need can't be loaded via ToolSearch, surface that explicitly rather than skipping the step silently.
+
+The pattern: *"Blocked on X. One sentence I'd write if I knew the answer: '…'. What's the actual answer?"*
+
+This is consistent with the broader anti-pattern named in `~/.claude/CLAUDE.md` ("don't burn dying context fabricating output when asking would resolve in 30 seconds"). Verbatim user quotes captured in Phase 4 are the durable grounding; one extra exchange to disambiguate is cheaper than a wrong-but-confident handover.
 
 ## When to Trigger
 
