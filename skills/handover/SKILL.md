@@ -2,8 +2,9 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.7.0
+version: 1.8.0
 changelog:
+  1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
   1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
   1.6.1 (2026-05-16): patch — announce-at-start now includes the version string for self-identification on invocation. Users had no easy way to verify which skill version was loaded vs cached. Reads the `version:` field above; replace `<version>` literally with that value.
   1.6.0 (2026-05-16): mandate verbatim user-quote capture — 5 surgical edits (Phase 0 triage matrix row, Phase 2 EXHAUSTIVENESS CHECKLIST row, Phase 4 template required section, anti-patterns table row, final checklist row). The conversation JSONL is local-only and /compact paraphrases lossily; verbatim quotes in the handover .md are the only durable grounding for "what the user wanted."
@@ -196,6 +197,66 @@ signal-dense rather than merely complete.**
 - Stash with descriptive message: `git stash push -m "WIP: <description>"`
 - Or create WIP commit: `git commit -m "WIP: <description> [skip ci]"`
 - Document what's incomplete and why
+
+### Phase 1a: Cruft Census (parallel-session hygiene)
+
+**Goal:** Surface accumulated parallel-session debris — stale branches, dangling worktrees, forgotten stashes — so the operator can decide what dies now vs. lives one more session.
+
+**Why this exists:** With parallel Claude sessions a normal pattern, branches and worktrees accumulate fast. Each session creates artifacts; few sessions clean up. Without a forced confrontation at handover time, cruft compounds until cleanup becomes daunting. The handover is the natural checkpoint — operator is already context-switching out, the cost of confronting cruft is amortized.
+
+This phase pairs with Phase 1's "scope check" (separate YOUR changes from ambient state): scope-check prevents wrongful commits IN this session; cruft census prevents debt accumulation ACROSS sessions.
+
+**Run the census:**
+
+```bash
+# 1. Active worktrees (count + paths)
+git worktree list
+
+# 2. Unmerged local branches (excluding current + main)
+git branch --no-merged main | grep -v "^\*"
+
+# 3. Merged-but-undeleted local branches (sweep candidates — safe to delete)
+git branch --merged main | grep -v "^\*\|main$"
+
+# 4. Stashes
+git stash list
+
+# 5. Stale branches (>14 days since last commit, on any branch)
+for b in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+  age_days=$(( ($(date +%s) - $(git log -1 --format=%ct "$b")) / 86400 ))
+  [ "$age_days" -gt 14 ] && echo "$b ($age_days days)"
+done
+```
+
+**Silent on clean state:** If `worktrees ≤ 1` AND `unmerged branches = 0` AND `stashes = 0` AND `stale branches = 0`, skip the rest of this phase. No output, no operator interrupt. Solo work on a single branch stays frictionless.
+
+**Decision rules when cruft exists:**
+
+| Finding | Action |
+|---------|--------|
+| Merged-but-undeleted branch | Offer to sweep: `git branch --merged main \| grep -v "^\*\|main$" \| xargs -r git branch -d` |
+| Stash >7 days old with no recent reference | Surface in handover; ask: review, apply, or drop |
+| Unmerged branch >14 days, no recent commits | Name in handover's **Deferred** section with explicit expiry condition (must merge, become ADR, or get `git branch -D`'d by date X) |
+| Worktree with no recent commits AND its branch is merged | Offer to remove: `git worktree remove <path>` |
+| Worktree with uncommitted changes | DO NOT auto-clean. Flag in handover; operator must triage |
+
+**Surface, don't shred:** Auto-cleans only merged-undeleted branches (provably safe — no work is lost). Unmerged branches, worktrees-with-uncommitted-work, and stashes get *named* in the handover with expiry conditions. The operator decides; you report.
+
+**Otherwise output to operator + handover doc:**
+
+```
+PARALLEL-SESSION CRUFT:
+- 3 active worktrees: ../tc-share, ../tc-norm, ../tc-vocab
+- 5 unmerged branches: session-share, session-norm, session-vocab, session-priv, session-audio
+- 2 merged-but-undeleted: session-old-1, session-old-2  ← sweep candidates
+- 1 stash: "WIP: vocab refiner — 2026-05-22"  ← review or drop
+- Stale (>14 days): session-old-1 (32 days)
+```
+
+Then ask the operator:
+- "Sweep N merged branches now?" (one-liner above)
+- "Drop M-day-old stash?" (`git stash drop stash@{N}`)
+- For stale unmerged branches: prompt them to add to the handover's Deferred section with an explicit expiry date.
 
 ### Phase 2: Thread Inventory
 
@@ -433,6 +494,16 @@ modified state outside the repo, name it here.*
 
 (Omit section if no manual steps required.)
 
+## Parallel-Session Cruft
+*Omit this section entirely if Phase 1a was silent (clean state). Otherwise:*
+- Worktrees: <count + paths>
+- Unmerged branches: <list>
+- Merged-but-undeleted (sweep candidates): <list>
+- Stashes: <list, with age>
+- Stale (>14 days): <branch (age)>
+- Decisions made this session: <e.g. "swept 2 merged branches", "dropped stash@{0}">
+- Deferred for next session: <e.g. "session-vocab — expires 2026-06-10 if not merged, else `git branch -D`">
+
 ## Learnings Captured
 - [x] Added to CLAUDE.md: <what>
 - [x] Added to MEMORY.md: <what>
@@ -572,12 +643,15 @@ If session spanned multiple repos:
 | Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
 | **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
 | **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
+| Skip the Phase 1a cruft census thinking "the next session will clean up" | The next session won't either. Every handover confronts what's accumulated. Sustainable parallel-session work depends on it. |
+| Auto-delete unmerged branches or worktrees-with-uncommitted-work during cruft census | Surface, don't shred. The operator decides; you report. Only merged-undeleted branches are provably safe to auto-sweep. |
 
 ## Checklist
 
 - [ ] Checked git status across all touched repos
 - [ ] Committed all changes (or stashed with clear message)
 - [ ] Pushed commits (or noted why not)
+- [ ] Ran Phase 1a cruft census (worktrees, unmerged branches, merged-undeleted, stashes, stale >14d). If cruft found: offered sweep of merged-undeleted, surfaced stale ones to operator with expiry conditions.
 - [ ] Inventoried all pending threads — scanned BOTH session-local TODOs AND documented deferred state (prior HANDOVER, ADRs, roadmap, architecture docs, audit reports, README "candidate" lists)
 - [ ] Classified threads: active / blocked / deferred; categorized deferred if >10 items
 - [ ] Captured "explicit decisions NOT to do" so they don't get re-proposed
