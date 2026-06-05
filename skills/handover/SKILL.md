@@ -2,8 +2,9 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.8.0
+version: 1.9.0
 changelog:
+  1.9.0 (2026-06-05): binding Phase-0 gate — the handover's FIRST user-facing message MUST be the hot-context-only capture proposal (named synthesis: a cross-decision posture, a cross-ADR/cross-file pattern, a rationale that won't survive the diff — NOT a restatement of "I'll commit, list threads, write the doc"); may NOT proceed to Phase 1 until proposed + pruned. Added 'Mechanical-scaffold-first' anti-pattern. Surfaced from a TemporalCoordination session where the model ran the mechanical scaffold and produced a complete-but-thin handover; the user pushed back ("nothing worth doing with hot context? this list is exhaustive you say?") to force real Phase-0 synthesis.
   1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
   1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
   1.6.1 (2026-05-16): patch — announce-at-start now includes the version string for self-identification on invocation. Users had no easy way to verify which skill version was loaded vs cached. Reads the `version:` field above; replace `<version>` literally with that value.
@@ -119,16 +120,29 @@ by a fresh agent reading the diff.
 - Speculative captures ahead of demonstrated need (Phantom Consumer)
 - Captures that need more from the user than they can give right now
 
-**Propose your captures to the user before executing** so they can
-prune or redirect. The user often has better marginal-value judgment
-than the exhausted-context model running on fumes. A brief proposal
-("Here's what I think is worth doing with remaining context, what
-should I drop?") respects both their attention and the residual
-context budget.
+**BINDING GATE — do this BEFORE any mechanical phase.** Your FIRST
+user-facing message in a handover MUST be the Phase-0 capture proposal:
+the specific high-leverage, hot-context-only synthesis you intend to
+produce, named concretely ("Here's what only this dying context can
+produce: \<X\>, \<Y\>, \<Z\> — what should I drop?"). You may NOT proceed
+to Phase 1 (commit checkpoint) until that proposal is made and the user
+has pruned/redirected it.
 
-After triage and user approval, proceed with Phases 1-4 — those are
-the mechanical scaffold. **Phase 0 is what makes the handover
-signal-dense rather than merely complete.**
+The proposal must contain real synthesis — a cross-decision pattern, a
+posture spanning multiple choices this session, a rationale that won't
+survive the diff alone, a project/cross-project memory only this trace
+can write. It is NOT a restatement of the mechanical scaffold ("I'll
+commit, list threads, write the doc"). If, after honest reflection, you
+truly cannot name anything only this context can produce, say so
+explicitly and justify it — don't silently skip to the scaffold.
+
+The user has better marginal-value judgment than the exhausted-context
+model running on fumes — and the model's strong default is to fall into
+the comfortable mechanical scaffold (Phases 1-4) and treat Phase 0 as a
+checkbox. Resist that. After the proposal is pruned/approved, proceed
+with Phases 1-4 (the mechanical scaffold). **Phase 0 is what makes the
+handover signal-dense rather than merely complete; the user should never
+have to ask "is that all?"**
 
 ### Phase 1: Commit Checkpoint
 
@@ -643,6 +657,7 @@ If session spanned multiple repos:
 | Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
 | **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
 | **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
+| **Mechanical-scaffold-first**: running Phases 1-4 (commit, thread-list, write doc) and treating Phase 0 as a checkbox → a complete-but-thin handover; the cross-session synthesis only this dying context can produce gets silently dropped | Open the handover with the Phase-0 capture proposal (BINDING gate) — name the hot-context-only items concretely BEFORE the scaffold. If the user has to ask "nothing worth doing with hot context?", Phase 0 was skipped. The synthesis (a posture across decisions, a cross-ADR/cross-file pattern, a "why" that won't survive the diff) is the highest-value thing a dying context produces — it can't be reconstructed by a fresh agent reading the commits. |
 | Skip the Phase 1a cruft census thinking "the next session will clean up" | The next session won't either. Every handover confronts what's accumulated. Sustainable parallel-session work depends on it. |
 | Auto-delete unmerged branches or worktrees-with-uncommitted-work during cruft census | Surface, don't shred. The operator decides; you report. Only merged-undeleted branches are provably safe to auto-sweep. |
 
