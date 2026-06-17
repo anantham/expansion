@@ -2,8 +2,9 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.10.0
+version: 1.11.0
 changelog:
+  1.11.0 (2026-06-17): harden Phase 1 (commit checkpoint) for shared checkouts. (a) Step 1 now verifies `git branch --show-current` is the intended branch — a parallel session can switch the checkout's branch mid-session (it switched twice in the surfacing session), silently landing your commit on their branch + failing the push; recover by landing the commit on the target branch via a SEPARATE worktree (never switch the shared checkout — clobbers their WIP). (b) Step 4 push now handles a FAILED push: an auth/connection error ("correct access rights… repository exists") is often transient (retry once) vs a non-fast-forward rejection (fetch+rebase, never `--force` a shared branch). (c) Phase 1a cruft-census sweep now EXCLUDES `worktree-*` branches — they back active/locked worktrees, so the "auto-sweep merged-undeleted" rule would break the worktree. Surfaced from a TemporalCoordination session (M5 transcription marathon) where committing the handover doc landed on a parallel session's branch + the push failed transiently, and the merged-undeleted list was entirely locked `worktree-agent-*` branches.
   1.10.0 (2026-06-17): Phase-0 binding gate now forces the per-item TRIAGE, not just naming — each named capture must carry a Do-NOW vs Defer verdict (one-question test: "could a fresh agent reproduce this from the final diff + instructions?") plus "which would you do if context were critically tight"; a bare enumeration without per-item verdicts is explicitly NOT a valid proposal. Also added a one-line adversarial completeness self-check before presenting (common misses: a user-working-preference lived this session, a reusable method discovered through failure, a cross-decision posture). Surfaced from a TemporalCoordination session where the model (post-1.9.0) NAMED the captures but handed the Do-Now/Defer triage to the user, who pushed back ("is this exhaustive tho", then "which of these would benefit from doing now while context is hot, is that not part of the skill why did you not surface that") — 1.9.0 closed the "name the synthesis" hole; this closes the "triage which to do now" hole one level up.
   1.9.0 (2026-06-05): binding Phase-0 gate — the handover's FIRST user-facing message MUST be the hot-context-only capture proposal (named synthesis: a cross-decision posture, a cross-ADR/cross-file pattern, a rationale that won't survive the diff — NOT a restatement of "I'll commit, list threads, write the doc"); may NOT proceed to Phase 1 until proposed + pruned. Added 'Mechanical-scaffold-first' anti-pattern. Surfaced from a TemporalCoordination session where the model ran the mechanical scaffold and produced a complete-but-thin handover; the user pushed back ("nothing worth doing with hot context? this list is exhaustive you say?") to force real Phase-0 synthesis.
   1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
@@ -169,11 +170,24 @@ have to ask "is that all?"**
 
 **Steps:**
 
-1. **Check git status**
+1. **Check git status — and confirm you're on the intended branch.**
    ```bash
    git status
+   git branch --show-current   # shared checkouts get switched by parallel sessions
    git diff --stat
    ```
+   In a checkout shared with parallel agents, the branch can be switched out from
+   under you mid-session (it can even switch **twice**) — so a later `git commit`
+   silently lands on someone else's branch and `git push` fails (no upstream /
+   non-fast-forward). If the current branch isn't the one you've been committing to
+   all session:
+   - Do NOT switch the shared checkout back (clobbers their uncommitted WIP), and
+     do NOT commit onto their branch (pollutes their PR).
+   - Land your commit on the target branch via a SEPARATE worktree:
+     `git worktree add <tmp> <target>; git -C <tmp> cherry-pick <sha>` (or write the
+     artifact there) `; git -C <tmp> push origin <target>; git worktree remove <tmp> --force`.
+   - After a prod-restart-from-session, the running app serves whatever branch the
+     checkout sits on — verify it's the intended one.
 
 2. **Scope check — separate YOUR changes from ambient state.**
 
@@ -212,6 +226,12 @@ have to ask "is that all?"**
    ```
    Verify with `git log origin/main..HEAD` (should show 0 commits after).
 
+   **If the push fails:** an auth/connection message ("Please make sure you have
+   the correct access rights and the repository exists") is often **transient** —
+   retry once before treating it as failure, then re-verify with
+   `git log origin/<branch>..HEAD`. If instead it's rejected *non-fast-forward*,
+   `git fetch` + rebase onto `origin/<branch>`; never `--force` a shared branch.
+
    Otherwise: list unpushed commits in the handover doc and explicitly
    note "PUSHED: no — awaits user authorization." That's a normal,
    expected end-state for a session.
@@ -248,8 +268,9 @@ git worktree list
 # 2. Unmerged local branches (excluding current + main)
 git branch --no-merged main | grep -v "^\*"
 
-# 3. Merged-but-undeleted local branches (sweep candidates — safe to delete)
-git branch --merged main | grep -v "^\*\|main$"
+# 3. Merged-but-undeleted local branches (sweep candidates — EXCLUDING worktree-*:
+#    those back active/locked worktrees, so deleting them breaks the worktree)
+git branch --merged main | grep -vE "^\*|main$|worktree-"
 
 # 4. Stashes
 git stash list
@@ -267,7 +288,7 @@ done
 
 | Finding | Action |
 |---------|--------|
-| Merged-but-undeleted branch | Offer to sweep: `git branch --merged main \| grep -v "^\*\|main$" \| xargs -r git branch -d` |
+| Merged-but-undeleted branch (NOT `worktree-*`) | Offer to sweep: `git branch --merged main \| grep -vE "^\*\|main$\|worktree-" \| xargs -r git branch -d`. **Never** sweep `worktree-*` branches — they back active/locked worktrees; deleting breaks them. |
 | Stash >7 days old with no recent reference | Surface in handover; ask: review, apply, or drop |
 | Unmerged branch >14 days, no recent commits | Name in handover's **Deferred** section with explicit expiry condition (must merge, become ADR, or get `git branch -D`'d by date X) |
 | Worktree with no recent commits AND its branch is merged | Offer to remove: `git worktree remove <path>` |
