@@ -2,8 +2,9 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.9.0
+version: 1.10.0
 changelog:
+  1.10.0 (2026-06-17): Phase-0 binding gate now forces the per-item TRIAGE, not just naming — each named capture must carry a Do-NOW vs Defer verdict (one-question test: "could a fresh agent reproduce this from the final diff + instructions?") plus "which would you do if context were critically tight"; a bare enumeration without per-item verdicts is explicitly NOT a valid proposal. Also added a one-line adversarial completeness self-check before presenting (common misses: a user-working-preference lived this session, a reusable method discovered through failure, a cross-decision posture). Surfaced from a TemporalCoordination session where the model (post-1.9.0) NAMED the captures but handed the Do-Now/Defer triage to the user, who pushed back ("is this exhaustive tho", then "which of these would benefit from doing now while context is hot, is that not part of the skill why did you not surface that") — 1.9.0 closed the "name the synthesis" hole; this closes the "triage which to do now" hole one level up.
   1.9.0 (2026-06-05): binding Phase-0 gate — the handover's FIRST user-facing message MUST be the hot-context-only capture proposal (named synthesis: a cross-decision posture, a cross-ADR/cross-file pattern, a rationale that won't survive the diff — NOT a restatement of "I'll commit, list threads, write the doc"); may NOT proceed to Phase 1 until proposed + pruned. Added 'Mechanical-scaffold-first' anti-pattern. Surfaced from a TemporalCoordination session where the model ran the mechanical scaffold and produced a complete-but-thin handover; the user pushed back ("nothing worth doing with hot context? this list is exhaustive you say?") to force real Phase-0 synthesis.
   1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
   1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
@@ -25,7 +26,7 @@ You are about to lose this context. Whether due to compaction, session end, or c
 
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
-**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.6.1`) so the user can verify which skill version is actually loaded.
+**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.10.0`) so the user can verify which skill version is actually loaded.
 
 ## Related Skills
 
@@ -123,10 +124,28 @@ by a fresh agent reading the diff.
 **BINDING GATE — do this BEFORE any mechanical phase.** Your FIRST
 user-facing message in a handover MUST be the Phase-0 capture proposal:
 the specific high-leverage, hot-context-only synthesis you intend to
-produce, named concretely ("Here's what only this dying context can
-produce: \<X\>, \<Y\>, \<Z\> — what should I drop?"). You may NOT proceed
-to Phase 1 (commit checkpoint) until that proposal is made and the user
-has pruned/redirected it.
+produce, **named concretely AND triaged per item**. For each named item,
+give a **Do-NOW vs Defer** verdict against the one-question test — *"could
+a fresh agent reproduce this from the final diff + instructions?"* (No →
+Do-NOW: synthesis, rationale, user-voice, a cross-project pattern; Yes →
+Defer to a pointer the next agent can act on). Then name **which items you'd
+still do if context were critically tight** — that forces a ranking, not a
+flat list. Format: *"Here's what only this dying context can produce: \<X\>
+[Do-NOW — irreproducible synthesis], \<Y\> [Do-NOW], \<Z\> [Defer — next
+agent re-runs the sweep] — what should I drop?"* A bare enumeration of
+candidates WITHOUT the per-item Do-NOW/Defer verdict is NOT a valid
+proposal: surfacing the list but handing the triage to the user is the
+"treat Phase 0 as a checkbox" anti-pattern one level up — the triage matrix
+above is the whole point, so APPLY it per item, don't just reference it.
+
+Before you present, run ONE adversarial completeness pass: **what
+high-leverage, hot-context-only capture am I NOT naming?** Recurring misses:
+a user-working-preference you lived this session; a reusable method or
+tool-usage discovered through failure; a cross-decision posture. If the user
+still has to ask "is that exhaustive?", this self-check was skipped.
+
+You may NOT proceed to Phase 1 (commit checkpoint) until that triaged
+proposal is made and the user has pruned/redirected it.
 
 The proposal must contain real synthesis — a cross-decision pattern, a
 posture spanning multiple choices this session, a rationale that won't
