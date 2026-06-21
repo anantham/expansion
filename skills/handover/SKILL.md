@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.11.0
+version: 1.11.1
 changelog:
   1.11.0 (2026-06-17): harden Phase 1 (commit checkpoint) for shared checkouts. (a) Step 1 now verifies `git branch --show-current` is the intended branch — a parallel session can switch the checkout's branch mid-session (it switched twice in the surfacing session), silently landing your commit on their branch + failing the push; recover by landing the commit on the target branch via a SEPARATE worktree (never switch the shared checkout — clobbers their WIP). (b) Step 4 push now handles a FAILED push: an auth/connection error ("correct access rights… repository exists") is often transient (retry once) vs a non-fast-forward rejection (fetch+rebase, never `--force` a shared branch). (c) Phase 1a cruft-census sweep now EXCLUDES `worktree-*` branches — they back active/locked worktrees, so the "auto-sweep merged-undeleted" rule would break the worktree. Surfaced from a TemporalCoordination session (M5 transcription marathon) where committing the handover doc landed on a parallel session's branch + the push failed transiently, and the merged-undeleted list was entirely locked `worktree-agent-*` branches.
   1.10.0 (2026-06-17): Phase-0 binding gate now forces the per-item TRIAGE, not just naming — each named capture must carry a Do-NOW vs Defer verdict (one-question test: "could a fresh agent reproduce this from the final diff + instructions?") plus "which would you do if context were critically tight"; a bare enumeration without per-item verdicts is explicitly NOT a valid proposal. Also added a one-line adversarial completeness self-check before presenting (common misses: a user-working-preference lived this session, a reusable method discovered through failure, a cross-decision posture). Surfaced from a TemporalCoordination session where the model (post-1.9.0) NAMED the captures but handed the Do-Now/Defer triage to the user, who pushed back ("is this exhaustive tho", then "which of these would benefit from doing now while context is hot, is that not part of the skill why did you not surface that") — 1.9.0 closed the "name the synthesis" hole; this closes the "triage which to do now" hole one level up.
@@ -27,7 +27,7 @@ You are about to lose this context. Whether due to compaction, session end, or c
 
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
-**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.10.0`) so the user can verify which skill version is actually loaded.
+**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.11.1`) so the user can verify which skill version is actually loaded.
 
 ## Related Skills
 
@@ -477,6 +477,16 @@ and writes there are first-class.
 - Option A: Append to project's CLAUDE.md under `## Latest Handover`
 - Option B: Write to `docs/HANDOVER.md` (git-tracked)
 - Option C: Write to `.claude/handover/<timestamp>.md` (local)
+- Option D (**background / isolation-guarded sessions — often the only one that works**):
+  write `~/.claude/projects/<encoded-cwd>/memory/_session-handover-<date>.md` and add a
+  one-line pointer at the TOP of that dir's `MEMORY.md` (which auto-loads next session).
+  Reach for this when A/B/C are unwritable: a background session's Write to the shared
+  checkout is rejected until `EnterWorktree` (so A, B, and C all fail), **and** `.claude/`
+  is commonly gitignored, so even a worktree copy of C can't be committed → lost. This is
+  consistent with Phase 3 (which already routes *learnings* to auto-memory); the
+  auto-memory doc is durable **and** auto-loaded, so here it is the PREFERRED fallback,
+  not a last resort. (The `MEMORY.md` pointer is what makes it discoverable — a bare file
+  in the memory dir is not auto-surfaced.)
 
 **Template:**
 ```markdown
