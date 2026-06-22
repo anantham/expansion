@@ -1,0 +1,5 @@
+# This tree is replicated Mac <-> Windows via Syncthing, which can rewrite line
+# endings. Normalize everything to LF in the repo so commits don't churn CRLF.
+* text=auto eol=lf
+*.md text eol=lf
+*.json text eol=lf

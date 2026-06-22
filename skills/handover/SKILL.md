@@ -2,10 +2,8 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.11.1
+version: 1.9.0
 changelog:
-  1.11.0 (2026-06-17): harden Phase 1 (commit checkpoint) for shared checkouts. (a) Step 1 now verifies `git branch --show-current` is the intended branch — a parallel session can switch the checkout's branch mid-session (it switched twice in the surfacing session), silently landing your commit on their branch + failing the push; recover by landing the commit on the target branch via a SEPARATE worktree (never switch the shared checkout — clobbers their WIP). (b) Step 4 push now handles a FAILED push: an auth/connection error ("correct access rights… repository exists") is often transient (retry once) vs a non-fast-forward rejection (fetch+rebase, never `--force` a shared branch). (c) Phase 1a cruft-census sweep now EXCLUDES `worktree-*` branches — they back active/locked worktrees, so the "auto-sweep merged-undeleted" rule would break the worktree. Surfaced from a TemporalCoordination session (M5 transcription marathon) where committing the handover doc landed on a parallel session's branch + the push failed transiently, and the merged-undeleted list was entirely locked `worktree-agent-*` branches.
-  1.10.0 (2026-06-17): Phase-0 binding gate now forces the per-item TRIAGE, not just naming — each named capture must carry a Do-NOW vs Defer verdict (one-question test: "could a fresh agent reproduce this from the final diff + instructions?") plus "which would you do if context were critically tight"; a bare enumeration without per-item verdicts is explicitly NOT a valid proposal. Also added a one-line adversarial completeness self-check before presenting (common misses: a user-working-preference lived this session, a reusable method discovered through failure, a cross-decision posture). Surfaced from a TemporalCoordination session where the model (post-1.9.0) NAMED the captures but handed the Do-Now/Defer triage to the user, who pushed back ("is this exhaustive tho", then "which of these would benefit from doing now while context is hot, is that not part of the skill why did you not surface that") — 1.9.0 closed the "name the synthesis" hole; this closes the "triage which to do now" hole one level up.
   1.9.0 (2026-06-05): binding Phase-0 gate — the handover's FIRST user-facing message MUST be the hot-context-only capture proposal (named synthesis: a cross-decision posture, a cross-ADR/cross-file pattern, a rationale that won't survive the diff — NOT a restatement of "I'll commit, list threads, write the doc"); may NOT proceed to Phase 1 until proposed + pruned. Added 'Mechanical-scaffold-first' anti-pattern. Surfaced from a TemporalCoordination session where the model ran the mechanical scaffold and produced a complete-but-thin handover; the user pushed back ("nothing worth doing with hot context? this list is exhaustive you say?") to force real Phase-0 synthesis.
   1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
   1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
@@ -27,7 +25,7 @@ You are about to lose this context. Whether due to compaction, session end, or c
 
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
-**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.11.1`) so the user can verify which skill version is actually loaded.
+**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.6.1`) so the user can verify which skill version is actually loaded.
 
 ## Related Skills
 
@@ -122,47 +120,16 @@ by a fresh agent reading the diff.
 - Speculative captures ahead of demonstrated need (Phantom Consumer)
 - Captures that need more from the user than they can give right now
 
-**BINDING GATE — do this BEFORE any mechanical phase.** Your FIRST
-user-facing message in a handover MUST be the Phase-0 capture proposal:
-the specific high-leverage, hot-context-only synthesis you intend to
-produce, **named concretely AND triaged per item**. For each named item,
-give a **Do-NOW vs Defer** verdict against the one-question test — *"could
-a fresh agent reproduce this from the final diff + instructions?"* (No →
-Do-NOW: synthesis, rationale, user-voice, a cross-project pattern; Yes →
-Defer to a pointer the next agent can act on). Then name **which items you'd
-still do if context were critically tight** — that forces a ranking, not a
-flat list. Format: *"Here's what only this dying context can produce: \<X\>
-[Do-NOW — irreproducible synthesis], \<Y\> [Do-NOW], \<Z\> [Defer — next
-agent re-runs the sweep] — what should I drop?"* A bare enumeration of
-candidates WITHOUT the per-item Do-NOW/Defer verdict is NOT a valid
-proposal: surfacing the list but handing the triage to the user is the
-"treat Phase 0 as a checkbox" anti-pattern one level up — the triage matrix
-above is the whole point, so APPLY it per item, don't just reference it.
+**Propose your captures to the user before executing** so they can
+prune or redirect. The user often has better marginal-value judgment
+than the exhausted-context model running on fumes. A brief proposal
+("Here's what I think is worth doing with remaining context, what
+should I drop?") respects both their attention and the residual
+context budget.
 
-Before you present, run ONE adversarial completeness pass: **what
-high-leverage, hot-context-only capture am I NOT naming?** Recurring misses:
-a user-working-preference you lived this session; a reusable method or
-tool-usage discovered through failure; a cross-decision posture. If the user
-still has to ask "is that exhaustive?", this self-check was skipped.
-
-You may NOT proceed to Phase 1 (commit checkpoint) until that triaged
-proposal is made and the user has pruned/redirected it.
-
-The proposal must contain real synthesis — a cross-decision pattern, a
-posture spanning multiple choices this session, a rationale that won't
-survive the diff alone, a project/cross-project memory only this trace
-can write. It is NOT a restatement of the mechanical scaffold ("I'll
-commit, list threads, write the doc"). If, after honest reflection, you
-truly cannot name anything only this context can produce, say so
-explicitly and justify it — don't silently skip to the scaffold.
-
-The user has better marginal-value judgment than the exhausted-context
-model running on fumes — and the model's strong default is to fall into
-the comfortable mechanical scaffold (Phases 1-4) and treat Phase 0 as a
-checkbox. Resist that. After the proposal is pruned/approved, proceed
-with Phases 1-4 (the mechanical scaffold). **Phase 0 is what makes the
-handover signal-dense rather than merely complete; the user should never
-have to ask "is that all?"**
+After triage and user approval, proceed with Phases 1-4 — those are
+the mechanical scaffold. **Phase 0 is what makes the handover
+signal-dense rather than merely complete.**
 
 ### Phase 1: Commit Checkpoint
 
@@ -170,24 +137,11 @@ have to ask "is that all?"**
 
 **Steps:**
 
-1. **Check git status — and confirm you're on the intended branch.**
+1. **Check git status**
    ```bash
    git status
-   git branch --show-current   # shared checkouts get switched by parallel sessions
    git diff --stat
    ```
-   In a checkout shared with parallel agents, the branch can be switched out from
-   under you mid-session (it can even switch **twice**) — so a later `git commit`
-   silently lands on someone else's branch and `git push` fails (no upstream /
-   non-fast-forward). If the current branch isn't the one you've been committing to
-   all session:
-   - Do NOT switch the shared checkout back (clobbers their uncommitted WIP), and
-     do NOT commit onto their branch (pollutes their PR).
-   - Land your commit on the target branch via a SEPARATE worktree:
-     `git worktree add <tmp> <target>; git -C <tmp> cherry-pick <sha>` (or write the
-     artifact there) `; git -C <tmp> push origin <target>; git worktree remove <tmp> --force`.
-   - After a prod-restart-from-session, the running app serves whatever branch the
-     checkout sits on — verify it's the intended one.
 
 2. **Scope check — separate YOUR changes from ambient state.**
 
@@ -226,12 +180,6 @@ have to ask "is that all?"**
    ```
    Verify with `git log origin/main..HEAD` (should show 0 commits after).
 
-   **If the push fails:** an auth/connection message ("Please make sure you have
-   the correct access rights and the repository exists") is often **transient** —
-   retry once before treating it as failure, then re-verify with
-   `git log origin/<branch>..HEAD`. If instead it's rejected *non-fast-forward*,
-   `git fetch` + rebase onto `origin/<branch>`; never `--force` a shared branch.
-
    Otherwise: list unpushed commits in the handover doc and explicitly
    note "PUSHED: no — awaits user authorization." That's a normal,
    expected end-state for a session.
@@ -268,9 +216,8 @@ git worktree list
 # 2. Unmerged local branches (excluding current + main)
 git branch --no-merged main | grep -v "^\*"
 
-# 3. Merged-but-undeleted local branches (sweep candidates — EXCLUDING worktree-*:
-#    those back active/locked worktrees, so deleting them breaks the worktree)
-git branch --merged main | grep -vE "^\*|main$|worktree-"
+# 3. Merged-but-undeleted local branches (sweep candidates — safe to delete)
+git branch --merged main | grep -v "^\*\|main$"
 
 # 4. Stashes
 git stash list
@@ -288,7 +235,7 @@ done
 
 | Finding | Action |
 |---------|--------|
-| Merged-but-undeleted branch (NOT `worktree-*`) | Offer to sweep: `git branch --merged main \| grep -vE "^\*\|main$\|worktree-" \| xargs -r git branch -d`. **Never** sweep `worktree-*` branches — they back active/locked worktrees; deleting breaks them. |
+| Merged-but-undeleted branch | Offer to sweep: `git branch --merged main \| grep -v "^\*\|main$" \| xargs -r git branch -d` |
 | Stash >7 days old with no recent reference | Surface in handover; ask: review, apply, or drop |
 | Unmerged branch >14 days, no recent commits | Name in handover's **Deferred** section with explicit expiry condition (must merge, become ADR, or get `git branch -D`'d by date X) |
 | Worktree with no recent commits AND its branch is merged | Offer to remove: `git worktree remove <path>` |
@@ -477,16 +424,6 @@ and writes there are first-class.
 - Option A: Append to project's CLAUDE.md under `## Latest Handover`
 - Option B: Write to `docs/HANDOVER.md` (git-tracked)
 - Option C: Write to `.claude/handover/<timestamp>.md` (local)
-- Option D (**background / isolation-guarded sessions — often the only one that works**):
-  write `~/.claude/projects/<encoded-cwd>/memory/_session-handover-<date>.md` and add a
-  one-line pointer at the TOP of that dir's `MEMORY.md` (which auto-loads next session).
-  Reach for this when A/B/C are unwritable: a background session's Write to the shared
-  checkout is rejected until `EnterWorktree` (so A, B, and C all fail), **and** `.claude/`
-  is commonly gitignored, so even a worktree copy of C can't be committed → lost. This is
-  consistent with Phase 3 (which already routes *learnings* to auto-memory); the
-  auto-memory doc is durable **and** auto-loaded, so here it is the PREFERRED fallback,
-  not a last resort. (The `MEMORY.md` pointer is what makes it discoverable — a bare file
-  in the memory dir is not auto-surfaced.)
 
 **Template:**
 ```markdown
@@ -707,7 +644,6 @@ If session spanned multiple repos:
 | Re-propose items the project decided to skip | Capture "explicit decisions NOT to do" in a separate section so future instances see the prior reasoning |
 | **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
 | **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
-| **Mechanical-scaffold-first**: running Phases 1-4 (commit, thread-list, write doc) and treating Phase 0 as a checkbox → a complete-but-thin handover; the cross-session synthesis only this dying context can produce gets silently dropped | Open the handover with the Phase-0 capture proposal (BINDING gate) — name the hot-context-only items concretely BEFORE the scaffold. If the user has to ask "nothing worth doing with hot context?", Phase 0 was skipped. The synthesis (a posture across decisions, a cross-ADR/cross-file pattern, a "why" that won't survive the diff) is the highest-value thing a dying context produces — it can't be reconstructed by a fresh agent reading the commits. |
 | Skip the Phase 1a cruft census thinking "the next session will clean up" | The next session won't either. Every handover confronts what's accumulated. Sustainable parallel-session work depends on it. |
 | Auto-delete unmerged branches or worktrees-with-uncommitted-work during cruft census | Surface, don't shred. The operator decides; you report. Only merged-undeleted branches are provably safe to auto-sweep. |
 

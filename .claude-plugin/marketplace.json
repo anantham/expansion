@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "expansion",
-  "description": "Custom skills: canvas diagrams, visualization, and personal workflow extensions",
+  "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, and skill self-improvement.",
   "owner": {
     "name": "Aditya"
   },
   "plugins": [
     {
       "name": "expansion",
-      "description": "Custom skills: canvas diagrams, visualization, and personal workflow extensions",
+      "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, and skill self-improvement.",
       "version": "1.5.0",
       "author": {
         "name": "Aditya"
