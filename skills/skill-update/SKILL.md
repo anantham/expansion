@@ -2,7 +2,12 @@
 name: Skill Update
 description: Meta-skill for learning from skill usage. Tracks uncertainties, human interventions, and gaps discovered during use, then proposes concrete skill patches.
 when_to_use: when actively using another skill and noticing ambiguities, gaps, or places where the skill's instructions were insufficient or wrong
-version: 1.1.0
+version: 1.2.0
+changelog:
+  1.2.0 (2026-07-03): retrospective mode (/mu at session end — reconstruct, verify,
+  never fake the log) + mandatory Phase 2c Subtraction Pass (every patch set names a
+  removal/compression candidate, additions state what they supersede, report net line
+  delta; changelogs capped at 2 entries). Older history: git log --follow this file.
 ---
 
 # Skill Update (Meta-Skill)
@@ -22,6 +27,14 @@ Invoke this **alongside** another skill when ANY of these occur:
 - You made a judgment call the skill doesn't encode
 - The user corrected your interpretation of the skill
 - You discovered a pattern worth codifying for next time
+
+### Retrospective mode (`/mu` at session end)
+
+Most real invocations arrive AFTER the work, via `/mu`, with no inline observation
+log. That's fine: reconstruct observations from the transcript — but verify each one
+against what actually happened (re-read the moment; don't trust narrative memory),
+and never pretend a log was kept. The checklist's "maintained observation log" row
+reads "or honestly reconstructed" in this mode.
 
 ## Process
 
@@ -71,6 +84,23 @@ PROPOSED: <exact new text or structural change>
 RATIONALE: <why, grounded in the specific experience>
 EXAMPLE: <concrete example from this session that illustrates the need>
 ```
+
+#### 2c. Subtraction Pass (mandatory)
+
+Skills monotonically grow — every session adds, nothing subtracts — until a skill
+costs more context than it saves. For EVERY patch set, before proposing:
+
+- Name at least one **removal or compression candidate** in the same skill, or state
+  explicitly that none exists and why. Priority order: changelog entries beyond the
+  latest 2 (git history holds the rest — cap the in-file changelog), guidance stated
+  twice (a Phase section AND the anti-patterns table), embedded copies of external
+  content a pointer covers, examples that restate the template, config/JSON dumps
+  that live in real config files, hardcoded values that go stale on every release
+  (e.g. "currently vX.Y" echoes).
+- Every addition names what it supersedes or generalizes — fold into the existing
+  clause rather than appending a sibling.
+- Report the skill's **net line delta** in the proposal. "+12 −40" is the shape of a
+  healthy patch set; a skill that only ever gains lines is accumulating debt.
 
 ### Phase 3: Proposal (Present to User)
 
@@ -154,11 +184,12 @@ Repeat (skills converge toward robustness)
 ## Checklist
 
 - [ ] Identified the primary skill being used
-- [ ] Maintained observation log during work (without interrupting)
+- [ ] Maintained observation log during work (or honestly reconstructed it in retrospective mode)
 - [ ] Completed primary task delivery first
 - [ ] Assessed frequency/severity/generality of each observation
 - [ ] Drafted patches only for qualifying observations
 - [ ] Each patch has: location, current, proposed, rationale, example
+- [ ] Ran the Subtraction Pass (2c): named a removal/compression candidate or justified none; reported net line delta
 - [ ] Grouped by priority (critical/enhancement/clarification)
 - [ ] Presented to user for approval before applying
 - [ ] Applied changes and bumped version on approval

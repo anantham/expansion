@@ -2,53 +2,19 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.13.0
+version: 1.14.0
 changelog:
-  1.13.0 (2026-07-03): three patches from a live_conversational_threads session
-  (onboarding + dual-family review + history rewrite). (a) Phase-1 staged-index
-  re-check is now UNCONDITIONAL, not shared-checkout-only — your own earlier
-  commands stage silently (`git mv` auto-stages); hours-old staged archive
-  renames rode into an unrelated commit in a single-agent PRIVATE worktree.
-  (b) New anti-pattern: the handover doc must survive the turn that writes it —
-  a doc listing "3 PRs open" went stale minutes later when the same session
-  merged them; if state-changing actions follow the doc, re-open and reconcile
-  it before ending. (c) Verbatim-quote timestamps are best-effort: in-context
-  messages carry no timestamps, so demand strict chronological order and an
-  explicit "times approximate" instead — never fabricate a timestamp to satisfy
-  the template.
-  1.12.0 (2026-07-01): two more shared-checkout Phase 1 failure modes, sibling to
-  1.11.0's branch-switch handling. (a) The *index itself* can drift between
-  `git add` and `git commit` — another agent's concurrent `git add` inserted its
-  own files into the acting session's staging area twice in one session; fix is
-  to re-run `git diff --cached --stat` immediately before the commit call, not
-  just once after `git add`. (b) When `git rebase` fails on a whole-tree-dirty
-  error, try `git merge` — it's surgical and only blocks on the specific files
-  that would collide, giving a much better diagnostic than rebase's blunter
-  error. When merge does block on specific files with other agents' uncommitted
-  WIP, don't stash/touch those files — do the integration in a scratch worktree
-  at HEAD on a throwaway branch instead, merge origin there (clean tree, no
-  collision), push from there, then remove the worktree. Also noted: a genuine
-  content conflict (not a collision, e.g. two sessions both editing the same
-  index-file line) is just a normal merge conflict, resolve it normally.
-  Surfaced from a TemporalCoordination newcomer-onboarding-docs session (5-6
-  other live agents active throughout) that hit both failure modes back to
-  back while pushing 3 separate commit rounds. Also: found and fixed a
-  regression where a prior commit (`ec7bce3`, "reconcile plugin metadata")
-  had silently reverted this file from v1.11.1 back to v1.9.0, wiping the
-  1.10.0/1.11.0 hardening for ~10 days before this fix restored it.
-  1.11.0 (2026-06-17): harden Phase 1 (commit checkpoint) for shared checkouts. (a) Step 1 now verifies `git branch --show-current` is the intended branch — a parallel session can switch the checkout's branch mid-session (it switched twice in the surfacing session), silently landing your commit on their branch + failing the push; recover by landing the commit on the target branch via a SEPARATE worktree (never switch the shared checkout — clobbers their WIP). (b) Step 4 push now handles a FAILED push: an auth/connection error ("correct access rights… repository exists") is often transient (retry once) vs a non-fast-forward rejection (fetch+rebase, never `--force` a shared branch). (c) Phase 1a cruft-census sweep now EXCLUDES `worktree-*` branches — they back active/locked worktrees, so the "auto-sweep merged-undeleted" rule would break the worktree. Surfaced from a TemporalCoordination session (M5 transcription marathon) where committing the handover doc landed on a parallel session's branch + the push failed transiently, and the merged-undeleted list was entirely locked `worktree-agent-*` branches.
-  1.10.0 (2026-06-17): Phase-0 binding gate now forces the per-item TRIAGE, not just naming — each named capture must carry a Do-NOW vs Defer verdict (one-question test: "could a fresh agent reproduce this from the final diff + instructions?") plus "which would you do if context were critically tight"; a bare enumeration without per-item verdicts is explicitly NOT a valid proposal. Also added a one-line adversarial completeness self-check before presenting (common misses: a user-working-preference lived this session, a reusable method discovered through failure, a cross-decision posture). Surfaced from a TemporalCoordination session where the model (post-1.9.0) NAMED the captures but handed the Do-Now/Defer triage to the user, who pushed back ("is this exhaustive tho", then "which of these would benefit from doing now while context is hot, is that not part of the skill why did you not surface that") — 1.9.0 closed the "name the synthesis" hole; this closes the "triage which to do now" hole one level up.
-  1.9.0 (2026-06-05): binding Phase-0 gate — the handover's FIRST user-facing message MUST be the hot-context-only capture proposal (named synthesis: a cross-decision posture, a cross-ADR/cross-file pattern, a rationale that won't survive the diff — NOT a restatement of "I'll commit, list threads, write the doc"); may NOT proceed to Phase 1 until proposed + pruned. Added 'Mechanical-scaffold-first' anti-pattern. Surfaced from a TemporalCoordination session where the model ran the mechanical scaffold and produced a complete-but-thin handover; the user pushed back ("nothing worth doing with hot context? this list is exhaustive you say?") to force real Phase-0 synthesis.
-  1.8.0 (2026-05-26): add **Phase 1a — Cruft Census** for parallel-session hygiene. Surfaces accumulated worktrees, unmerged branches, merged-but-undeleted branches, stashes, and stale (>14d) branches so the operator can confront accumulation at the natural session-end checkpoint. Silent on clean state (≤1 worktree, 0 unmerged, 0 stashes, 0 stale). Surface-don't-shred rule: auto-deletes only merged-undeleted branches; unmerged or worktrees-with-uncommitted-work get named and deferred. Template gains a Parallel-Session Cruft section. Surfaced from a TC session where `git add <file> && git commit` piggybacked a parallel agent's staged deletion of `core/contacts.py` onto a test commit — sharing an index across parallel Claude sessions is unsafe; worktrees are the answer, but only if cruft from prior sessions doesn't bury the operator.
-  1.7.0 (2026-05-18): add "Available cross-project affordances" section pointing at `~/Documents/Ongoing Local/AFFORDANCES.md` (currently: browser-automation-against-frontier-model-accounts, scheduled-recurring-tasks). Add "Ask the human when blocked" binding section — stop and ask rather than fabricate when permission-denied, missing files, ambiguous state, or unavailable tools come up. Both surfaced from LexiconForge Heart Sutra session where a blocked subagent correctly refused to fabricate Gemini Deep Research output.
-  1.6.1 (2026-05-16): patch — announce-at-start now includes the version string for self-identification on invocation. Users had no easy way to verify which skill version was loaded vs cached. Reads the `version:` field above; replace `<version>` literally with that value.
-  1.6.0 (2026-05-16): mandate verbatim user-quote capture — 5 surgical edits (Phase 0 triage matrix row, Phase 2 EXHAUSTIVENESS CHECKLIST row, Phase 4 template required section, anti-patterns table row, final checklist row). The conversation JSONL is local-only and /compact paraphrases lossily; verbatim quotes in the handover .md are the only durable grounding for "what the user wanted."
-  1.5.0 (2026-05-14): exhaustiveness checklist + name 'Silent Omission via Conciseness' anti-pattern. Added Phase 2 EXHAUSTIVENESS CHECKLIST (9 binding rows), explicit Carry-forward-from-prior-handover scan-for item, named anti-pattern, split Phase 4 template's Session Summary (narrative) from Pending Threads (enumeration). Plus 'Operator Cleanup' section in template.
-  1.4.0 (2026-05-14): Phase 0 — Triage by Marginal Value. Identify what THIS dying context can produce that future sessions cannot; propose captures to user before executing.
-  1.3.0 (2026-05-13): related-skills cross-ref (meta-update + skill-update), ADR section in template, overwrite guidance for existing HANDOVER.md, push-auth rule.
-  1.2.0 (2026-05-13): require exhaustive deferred-thread scan — read prior HANDOVER, ADRs, roadmap, architecture docs, audit reports, README "candidate" lists. Don't only document this-session TODOs.
-  1.1.0 (2026-05-13): empirical patches from LexiconForge load-test.
-  1.0.0 (2026-02-11): initial — graceful context transfer before compaction; PreCompact hook integration.
+  1.14.0 (2026-07-03): +2 clarifications (/mu actually aliases skill-update, not
+  meta-update; Phase 1a — you cannot remove the worktree you're standing in, name
+  it as next-session cruft instead). MINUS ~110 lines per the new subtraction rule:
+  changelog capped at latest 2 entries (FULL per-version history = `git log
+  --follow` on this file; every bump is a commit carrying the rationale),
+  affordances section reduced to the pointer it itself prescribes, hook-config
+  JSON replaced with prose (the JSON lives in settings.json), example handover
+  compressed to a skeleton.
+  1.13.0 (2026-07-03): unconditional staged-index re-check (git mv auto-stages,
+  private worktrees too); doc-must-survive-the-turn anti-pattern; verbatim-quote
+  timestamps best-effort, never fabricated.
 ---
 
 # Handover
@@ -59,29 +25,20 @@ You are about to lose this context. Whether due to compaction, session end, or c
 
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
-**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above (currently `1.12.0`) so the user can verify which skill version is actually loaded.
+**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above so the user can verify which skill version is actually loaded.
 
 ## Related Skills
 
 Handover focuses on session-state preservation. Two adjacent skills handle downstream concerns:
 
-- **`/meta-update` (or `/mu`)** — Updates `~/.claude/CLAUDE.md` with cross-project protocol learnings extracted from this session. Run AFTER handover when you've noticed corrections, new patterns, or protocol gaps.
+- **`/meta-update`** — Updates `~/.claude/CLAUDE.md` with cross-project protocol learnings extracted from this session. Run AFTER handover. NOTE: **`/mu` is NOT this** — in current environments `/mu` aliases `expansion:skill-update`; invoke meta-update by its full name.
 - **`/expansion:skill-update`** — Updates THIS or any other skill based on friction encountered while using it. Run when the skill's instructions didn't quite cover your situation.
 
-Typical end-of-session flow: `/handover` → `/mu` → `/expansion:skill-update` (only the first is always relevant; the latter two are conditional).
+Typical end-of-session flow: `/handover` → `/mu` (= skill-update) → `/meta-update` (only the first is always relevant; the latter two are conditional).
 
 ## Available cross-project affordances
 
-Before writing or recommending a new utility, check **`~/Documents/Ongoing Local/AFFORDANCES.md`** — it's the lean, hand-curated registry of tools that already exist across the user's projects. If the next instance might benefit from one of these, surface it in the handover's *Key Context* section.
-
-Currently registered (subject to drift — grep AFFORDANCES.md for the live list):
-
-- **Browser automation against logged-in frontier-model accounts** (Gemini / ChatGPT / Claude.ai / Grok with their real cookies). Use for Deep Research runs, image generation, paid-feature access, or anything that requires the user's actual account on a frontier model.
-  - GEO's Python provider (`~/Documents/Ongoing Local/GEO/runner/atlas_runner/browser_chat.py`) — robust class-based pattern.
-  - LexiconForge's concrete script (`~/Documents/Ongoing Local/LexiconForge/scripts/gemini_research.py`) — minimal CLI: prompt file → Gemini response markdown file. Persistent state at `~/.atlas/browser-state/gemini.google.com/`. Drop-in invocable.
-- **Scheduled recurring tasks** via `TemporalCoordination/scheduled_tasks/` plugin-based runner — for backups, vault maintenance, journal carryover, metric collection. Config-driven `daily:HH:MM` / `interval:Nh` schedules.
-
-If a session-relevant affordance was used or could have been used, mention it in **Key Context** with a one-line "next instance: see `<path>` for `<problem>`" pointer. Don't duplicate AFFORDANCES.md content — the pointer is enough.
+Before writing or recommending a new utility, check **`~/Documents/Ongoing Local/AFFORDANCES.md`** — the hand-curated registry of tools that already exist across the user's projects (browser automation on logged-in frontier accounts, scheduled recurring tasks, and more — grep it for the live list; it drifts). If a session-relevant affordance was used or could have been used, add a one-line "next instance: see `<path>` for `<problem>`" pointer to the handover's **Key Context**. Don't duplicate the registry's content — the pointer is enough.
 
 ## Ask the human when blocked (binding)
 
@@ -365,6 +322,7 @@ done
 | Unmerged branch >14 days, no recent commits | Name in handover's **Deferred** section with explicit expiry condition (must merge, become ADR, or get `git branch -D`'d by date X) |
 | Worktree with no recent commits AND its branch is merged | Offer to remove: `git worktree remove <path>` |
 | Worktree with uncommitted changes | DO NOT auto-clean. Flag in handover; operator must triage |
+| The worktree this session is STANDING IN | Cannot be removed from inside the session — if its branch is merged, name it as next-session cruft (with any hazards, e.g. a junctioned node_modules that must be deleted non-recursively first) rather than attempting removal |
 
 **Surface, don't shred:** Auto-cleans only merged-undeleted branches (provably safe — no work is lost). Unmerged branches, worktrees-with-uncommitted-work, and stashes get *named* in the handover with expiry conditions. The operator decides; you report.
 
@@ -686,51 +644,12 @@ Before overwriting:
 
 ## Automatic Hook Integration
 
-Claude Code has a `PreCompact` hook that fires at ~83.5% context (before automatic compaction).
+Two hooks in `~/.claude/settings.json` (already configured — read that file for the exact JSON): a `PreCompact(auto)` hook fires at ~83.5% context with "[HANDOVER TRIGGER] … run /handover", and a `SessionStart(compact)` hook reminds the next instance to check the handover docs after compaction.
 
-**Already configured in `~/.claude/settings.json`:**
-```json
-{
-  "hooks": {
-    "PreCompact": [
-      {
-        "matcher": "auto",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '[HANDOVER TRIGGER] Context at compaction threshold - run /handover'",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '[POST-COMPACTION] Check docs/HANDOVER.md for context'",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**How it works:**
-1. When context hits ~83.5%, `PreCompact` hook fires with reminder to run `/handover`
-2. You run `/handover` to preserve state
-3. Compaction happens, summarizing conversation
-4. `SessionStart` with `compact` matcher reminds next instance to check handover docs
-
-**Behavior when triggered:**
+**Behavior when auto-triggered:**
 - Announce: "Context at compaction threshold — running handover before compaction."
-- Run all four phases
-- Be concise — context is precious
-- Prioritize: commits > threads > learnings > document
+- Run all phases, concisely — context is precious.
+- Prioritize: commits > threads > learnings > document.
 
 ## Edge Cases
 
@@ -809,48 +728,14 @@ If session spanned multiple repos:
 
 ## Example Handover
 
-*This example is deliberately short — a quiet session with a few session-local items. Real handovers on long-running projects often have 20+ deferred items pulled from prior HANDOVERs, ADRs, roadmap, and audit reports; in that case the Deferred section should be categorized (see Phase 2 → "Long lists: categorize") rather than a flat list.*
-
-```markdown
-# Handover: 2026-02-11 21:00
-
-## Session Summary
-Fixed reply-to-image workflow (3 bugs: beeper extraction, DB upsert, workflow angel).
-Added Browser Automation angel. Created /surfaceTechDebt skill.
-
-## Commits This Session
-- `e4bdbf7` feat(voices): add voice profiles for cross-recording speaker ID
-- `7f0c5b8` feat(angels): add Browser Automation angel with Chrome extension
-- `5c1f603` fix(db): persist participants on item upsert
-- ... (10 total, all pushed)
-
-## Pending Threads
-
-### Continue Immediately
-1. **ADR-021 Feedback Dashboard** — Plan exists at ~/.claude/plans/partitioned-sparking-river.md, not started
-
-### Blocked
-None
-
-### Deferred
-1. **Workflow capability manifest** — User asked about meme routing (retrieve vs generate vs edit), parked for reply-to-image fix
-
-## Key Context
-- Beeper uses `linkedMessageID` for replies (not `replyTo`)
-- Workflow angel timeout is 600s (was 300s)
-- Web server and beeper ingestion running as background tasks
-
-## Running Processes
-- Web server — task bc66aee — check with `tail ~/.../bc66aee.output`
-- Beeper ingestion — task b6c3958 — actively processing messages
-
-## Resume Instructions
-1. Verify reply-to-image works: send image to Telegram, reply with "p ud <prompt>"
-2. If working, continue with ADR-021 Feedback Dashboard implementation
-
----
-*Handover by Claude at ~85% context*
-```
+A quiet session's handover can be ~25 lines: Session Summary (2 sentences), Commits
+(hash+message list, "all pushed"), Pending Threads (1 active item with file+next-step,
+"Blocked: none", 1 deferred), Key Context (2–3 non-obvious facts like "Beeper uses
+`linkedMessageID` not `replyTo`"), Running Processes (task id + check command), Resume
+Instructions (2 numbered steps). Long-running projects instead often carry 20+ deferred
+items pulled from prior HANDOVERs/ADRs/roadmap — categorize those (see Phase 2) rather
+than flattening. Match the doc's weight to the session's actual state; completeness of
+enumeration matters, prose volume doesn't.
 
 ## Post-Handover
 
