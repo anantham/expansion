@@ -2,8 +2,20 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.12.0
+version: 1.13.0
 changelog:
+  1.13.0 (2026-07-03): three patches from a live_conversational_threads session
+  (onboarding + dual-family review + history rewrite). (a) Phase-1 staged-index
+  re-check is now UNCONDITIONAL, not shared-checkout-only — your own earlier
+  commands stage silently (`git mv` auto-stages); hours-old staged archive
+  renames rode into an unrelated commit in a single-agent PRIVATE worktree.
+  (b) New anti-pattern: the handover doc must survive the turn that writes it —
+  a doc listing "3 PRs open" went stale minutes later when the same session
+  merged them; if state-changing actions follow the doc, re-open and reconcile
+  it before ending. (c) Verbatim-quote timestamps are best-effort: in-context
+  messages carry no timestamps, so demand strict chronological order and an
+  explicit "times approximate" instead — never fabricate a timestamp to satisfy
+  the template.
   1.12.0 (2026-07-01): two more shared-checkout Phase 1 failure modes, sibling to
   1.11.0's branch-switch handling. (a) The *index itself* can drift between
   `git add` and `git commit` — another agent's concurrent `git add` inserted its
@@ -235,7 +247,11 @@ have to ask "is that all?"**
    enough. Re-run `git diff --cached --stat` again *immediately before* the
    actual `git commit` call, every time, and `git restore --staged <path>`
    anything that isn't yours. This has been observed to happen twice in one
-   session.
+   session. **This rule is unconditional — it applies in PRIVATE worktrees
+   too**: your own earlier commands stage things silently (`git mv`
+   auto-stages; setup scripts may `git add`), and hours-old staged renames
+   have ridden into an unrelated commit in a single-agent worktree with no
+   other session involved.
 
 3. **If your uncommitted changes exist:**
    - Group related changes into logical commits
@@ -562,8 +578,12 @@ session. The /compact summary paraphrases lossily — it loses cadence,
 specific terminology, and the precise force of the user's redirects. The
 next instance has no way to verify a paraphrased "user wanted X" claim
 against what the user actually said. Capture the user's own words here,
-with timestamps, so every downstream decision in this handover has a
-grounded source.*
+with timestamps when cheaply available (the offline JSONL holds them),
+so every downstream decision in this handover has a grounded source.
+In-context messages carry NO timestamps — when they aren't cheaply
+recoverable, preserve strict chronological order and mark the list
+"times approximate" instead. NEVER fabricate a timestamp to satisfy the
+template; the verbatim words are the load-bearing part.*
 
 *Scope: every decision arc — initial scope-setting, mid-session redirects,
 ratifications ("yes do that"), authorizations ("yep go ahead"), explicit
@@ -764,6 +784,7 @@ If session spanned multiple repos:
 | **Silent Omission via Conciseness**: write a "clean" handover that under-enumerates (3 named wins, 8 named threads, looks crisp and professional, drops items because they didn't fit the narrative) | Default to enumeration over prose. The Session Summary is for human skim; the thread list is for the next instance's worklist. Better to be ugly-and-complete than crisp-and-incomplete. Run the EXHAUSTIVENESS CHECKLIST (Phase 2) before writing Phase 4 — if it surfaces items, include them even if they break the narrative flow. |
 | **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
 | **Mechanical-scaffold-first**: running Phases 1-4 (commit, thread-list, write doc) and treating Phase 0 as a checkbox → a complete-but-thin handover; the cross-session synthesis only this dying context can produce gets silently dropped | Open the handover with the Phase-0 capture proposal (BINDING gate) — name the hot-context-only items concretely BEFORE the scaffold. If the user has to ask "nothing worth doing with hot context?", Phase 0 was skipped. The synthesis (a posture across decisions, a cross-ADR/cross-file pattern, a "why" that won't survive the diff) is the highest-value thing a dying context produces — it can't be reconstructed by a fresh agent reading the commits. |
+| **Write the handover doc, then keep acting** (merging, pushing, deleting, deploying) without updating it | The doc is stale before the session ends and boots the next instance into wrong state. Handover is the LAST state-changing act of a session; if the user asks for more actions after the doc is written, re-open it and reconcile every claim those actions changed (PR states, service status, cruft lists) before ending. A doc that said "3 PRs open, awaiting merge" was wrong within minutes when the same session then merged all three. |
 | Skip the Phase 1a cruft census thinking "the next session will clean up" | The next session won't either. Every handover confronts what's accumulated. Sustainable parallel-session work depends on it. |
 | Auto-delete unmerged branches or worktrees-with-uncommitted-work during cruft census | Surface, don't shred. The operator decides; you report. Only merged-undeleted branches are provably safe to auto-sweep. |
 
