@@ -2,8 +2,15 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.14.0
+version: 1.15.0
 changelog:
+  1.15.0 (2026-07-04): Background Processes Running edge case now prescribes making
+  long jobs SURVIVE the session — a Claude Code background-bash job is killed at its
+  ~10-min tool timeout, so multi-hour work must be a detached OS process (Start-Process
+  -WindowStyle Hidden / nohup) with a PID file + resumable state journal, and the PID
+  must be verified alive before a handover claims "still running" (a dead/reused PID
+  misleads worse than silence). Grounded in a Beeper backfill sweep that only survived
+  once detached + resumable.
   1.14.0 (2026-07-03): +2 clarifications (/mu actually aliases skill-update, not
   meta-update; Phase 1a — you cannot remove the worktree you're standing in, name
   it as next-session cruft instead). MINUS ~110 lines per the new subtraction rule:
@@ -12,9 +19,6 @@ changelog:
   affordances section reduced to the pointer it itself prescribes, hook-config
   JSON replaced with prose (the JSON lives in settings.json), example handover
   compressed to a skeleton.
-  1.13.0 (2026-07-03): unconditional staged-index re-check (git mv auto-stages,
-  private worktrees too); doc-must-survive-the-turn anti-pattern; verbatim-quote
-  timestamps best-effort, never fabricated.
 ---
 
 # Handover
@@ -674,12 +678,22 @@ If long-running tasks are in progress:
 1. Document task IDs and how to check status
 2. Note expected completion
 3. Describe what to do when complete
-4. Example:
+4. **Make it survive the session, and verify it's alive before claiming so.** In
+   Claude Code a *background-bash* job is killed when its tool call times out
+   (~10 min) — it will NOT outlive the session. For work that must keep running
+   (multi-hour jobs), launch it as a **detached OS process** (`Start-Process
+   -WindowStyle Hidden` on Windows, `nohup … &` elsewhere), write its **PID to a
+   file**, and make it **resumable from a state journal** so the next instance can
+   poll and resume. Before writing "still running (PID X)", confirm the PID is
+   actually alive — a documented-but-dead process, or a reused PID pointing at an
+   unrelated program, misleads the next instance worse than saying nothing.
+5. Example:
    ```
-   BACKGROUND: Beeper ingestion agent (PID 12345)
-   - Started: 15:30
-   - Status: Check with `tail -20 /path/to/output`
-   - On complete: Verify items in DB, then can be killed
+   BACKGROUND: Beeper backfill sweep (detached, PID 26452)
+   - Launched: Start-Process -WindowStyle Hidden (survives the ~10-min bg-bash cap)
+   - Status: poll DB row count + state journal (agents/state/*_state.json)
+   - Resume: re-run the same command — it skips complete units, re-walks stragglers
+   - CHECK the PID is alive before trusting "running"; if dead, relaunch (it resumes)
    ```
 
 ### Multiple Projects Touched
