@@ -21,6 +21,7 @@ on demand when the task matches — or that you invoke explicitly with `/expansi
 | **canvas-diagrams** | `/expansion:canvas-diagrams` | Generates Obsidian Canvas (`.canvas`) files for UX flows, data flows, and testing-infrastructure visualization. |
 | **handover** | `/expansion:handover` | Graceful context transfer before session end or compaction — commits work, documents pending threads, captures learnings, prepares the next instance. |
 | **skill-update** | `/expansion:skill-update` | Meta-skill: learns from skill usage, tracks uncertainties and human interventions, and proposes concrete patches to the skills themselves. |
+| **meta-update** | `/expansion:meta-update` | The `/meta-update` ritual: promotes a session's durable cross-project learnings to a shared union store — a tagged mistakes ledger, a pulled-on-demand library with an index, and a journal — plus per-project auto-memory, guarding against silent sync-conflict loss. (Distinct from `/mu`, which aliases skill-update.) |
 
 The doc skills are designed to compose: **doc-audit** finds gaps → **doc-writer** fills them →
 **doc-prover** locks down the invariants that matter. **surface-tech-debt** and **test-audit**

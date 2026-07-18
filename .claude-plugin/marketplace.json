@@ -1,15 +1,15 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "expansion",
-  "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, and skill self-improvement.",
+  "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, cross-project memory promotion, and skill self-improvement.",
   "owner": {
     "name": "Aditya"
   },
   "plugins": [
     {
       "name": "expansion",
-      "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, and skill self-improvement.",
-      "version": "1.9.0",
+      "description": "Custom Claude Code skills: documentation auditing/writing/proving, codebase tech-debt and test-quality review, postmortems, canvas diagrams, session handover, cross-project memory promotion, and skill self-improvement.",
+      "version": "1.10.0",
       "author": {
         "name": "Aditya"
       },
