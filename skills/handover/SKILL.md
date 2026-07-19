@@ -2,8 +2,14 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.15.0
+version: 1.15.1
 changelog:
+  1.15.1 (2026-07-19): Anti-pattern added — unbounded "verified green" claims.
+  A verification claim must name the commands run, the SHAs they ran against,
+  AND the known not-verified surface. Grounded in a trial-merge verdict that
+  named tsc+tests but not the never-run vite build, where the real blocker
+  (an unresolvable gitignored import) lived. Subtraction: Background-Processes
+  example compressed (restated Principle 4's bolded guidance).
   1.15.0 (2026-07-04): Background Processes Running edge case now prescribes making
   long jobs SURVIVE the session — a Claude Code background-bash job is killed at its
   ~10-min tool timeout, so multi-hour work must be a detached OS process (Start-Process
@@ -11,14 +17,6 @@ changelog:
   must be verified alive before a handover claims "still running" (a dead/reused PID
   misleads worse than silence). Grounded in a Beeper backfill sweep that only survived
   once detached + resumable.
-  1.14.0 (2026-07-03): +2 clarifications (/mu actually aliases skill-update, not
-  meta-update; Phase 1a — you cannot remove the worktree you're standing in, name
-  it as next-session cruft instead). MINUS ~110 lines per the new subtraction rule:
-  changelog capped at latest 2 entries (FULL per-version history = `git log
-  --follow` on this file; every bump is a commit carrying the rationale),
-  affordances section reduced to the pointer it itself prescribes, hook-config
-  JSON replaced with prose (the JSON lives in settings.json), example handover
-  compressed to a skeleton.
 ---
 
 # Handover
@@ -689,11 +687,9 @@ If long-running tasks are in progress:
    unrelated program, misleads the next instance worse than saying nothing.
 5. Example:
    ```
-   BACKGROUND: Beeper backfill sweep (detached, PID 26452)
-   - Launched: Start-Process -WindowStyle Hidden (survives the ~10-min bg-bash cap)
-   - Status: poll DB row count + state journal (agents/state/*_state.json)
-   - Resume: re-run the same command — it skips complete units, re-walks stragglers
-   - CHECK the PID is alive before trusting "running"; if dead, relaunch (it resumes)
+   BACKGROUND: Beeper backfill sweep — detached, PID 26452 (PID file + state journal)
+   - Status: poll DB row count + agents/state/*_state.json
+   - Resume: re-run the same command — skips complete units, re-walks stragglers
    ```
 
 ### Multiple Projects Touched
@@ -718,6 +714,7 @@ If session spanned multiple repos:
 | **Paraphrasing the user's voice** ("user wanted X", "we agreed Y", "the directive was Z") | Quote verbatim with timestamp. Paraphrase strips the cadence and specific terminology that carries the WHY (e.g. user saying *"forcing function"* vs. summary saying *"a strict rule"* — different intents). Future instances can't verify a paraphrase against the original. JSONL is local-only; verbatim capture in the handover .md is the only durable grounding. |
 | **Mechanical-scaffold-first**: running Phases 1-4 (commit, thread-list, write doc) and treating Phase 0 as a checkbox → a complete-but-thin handover; the cross-session synthesis only this dying context can produce gets silently dropped | Open the handover with the Phase-0 capture proposal (BINDING gate) — name the hot-context-only items concretely BEFORE the scaffold. If the user has to ask "nothing worth doing with hot context?", Phase 0 was skipped. The synthesis (a posture across decisions, a cross-ADR/cross-file pattern, a "why" that won't survive the diff) is the highest-value thing a dying context produces — it can't be reconstructed by a fresh agent reading the commits. |
 | **Write the handover doc, then keep acting** (merging, pushing, deleting, deploying) without updating it | The doc is stale before the session ends and boots the next instance into wrong state. Handover is the LAST state-changing act of a session; if the user asks for more actions after the doc is written, re-open it and reconcile every claim those actions changed (PR states, service status, cruft lists) before ending. A doc that said "3 PRs open, awaiting merge" was wrong within minutes when the same session then merged all three. |
+| **Unbounded "verified green" claims** ("trial merge was clean — tsc 17, tests green") | A verification claim names the commands run, their key numbers, the SHAs they ran against, AND the known not-verified surface ("vite build not run"). The successor must be able to tell whether the verdict still binds and where its edge is. A 2026-07-18 trial-merge verdict named tsc+tests; the real blocker (a gitignored import unresolvable on fresh checkouts) lived precisely in the never-run build gate, and the successor read "green" as one gate wider than measured. |
 | Skip the Phase 1a cruft census thinking "the next session will clean up" | The next session won't either. Every handover confronts what's accumulated. Sustainable parallel-session work depends on it. |
 | Auto-delete unmerged branches or worktrees-with-uncommitted-work during cruft census | Surface, don't shred. The operator decides; you report. Only merged-undeleted branches are provably safe to auto-sweep. |
 
