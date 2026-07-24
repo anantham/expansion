@@ -2,21 +2,22 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.15.1
+version: 1.16.0
 changelog:
+  1.16.0 (2026-07-24): Carried-forward reconciliation is now BINDING-TABULAR — a
+  pointer to the prior handover is NOT reconciliation. Every prior thread gets a
+  status cell (resolved / still-pending / obsoleted-by-X / NEWLY-TIMELY). Grounded
+  in the 3rd ledgered instance of pointer-compression: a handover pointed at a
+  10-item tail instead of reconciling, and the operator's "is this exhaustive
+  though?" surfaced items whose relevance had FLIPPED ("queued with v2.2" — v2.2
+  had shipped that same session). Newly-timely items are exactly what pointers
+  structurally cannot surface. Subtraction: changelog rotated (1.15.0 → git log).
   1.15.1 (2026-07-19): Anti-pattern added — unbounded "verified green" claims.
   A verification claim must name the commands run, the SHAs they ran against,
   AND the known not-verified surface. Grounded in a trial-merge verdict that
   named tsc+tests but not the never-run vite build, where the real blocker
   (an unresolvable gitignored import) lived. Subtraction: Background-Processes
   example compressed (restated Principle 4's bolded guidance).
-  1.15.0 (2026-07-04): Background Processes Running edge case now prescribes making
-  long jobs SURVIVE the session — a Claude Code background-bash job is killed at its
-  ~10-min tool timeout, so multi-hour work must be a detached OS process (Start-Process
-  -WindowStyle Hidden / nohup) with a PID file + resumable state journal, and the PID
-  must be verified alive before a handover claims "still running" (a dead/reused PID
-  misleads worse than silence). Grounded in a Beeper backfill sweep that only survived
-  once detached + resumable.
 ---
 
 # Handover
@@ -407,7 +408,7 @@ This is a SECONDARY auditing pass *after* the scan-for items + categorization. T
 - [ ] Every commit message containing "TODO" / "XXX" / "FIXME" → promoted to a thread?
 - [ ] Every test added with `pytest.mark.skip` / `xfail` / similar → captured as a thread with the unblock condition?
 - [ ] Every external account / cookie / persistent context modified by automation → operator cleanup step documented?
-- [ ] Every prior-handover thread in the "Deferred" section → resolved this session, still deferred, or obsoleted? Never silently drop.
+- [ ] Every prior-handover thread → a STATUS CELL in the Carried-forward table (resolved-this-session / still-pending / obsoleted-by-X / **newly-timely**). A pointer to the old handover is NOT reconciliation — pointer-compression is a 3×-ledgered failure mode, and its worst loss is the NEWLY-TIMELY class: items parked as "queued behind X" where X shipped this very session. Only per-item touch reveals a flipped dependency.
 - [ ] Every user decision arc this session (scope-setting, redirect, ratification, "go ahead"-style authorization, "why" rationale) → captured as a **verbatim quote** with timestamp in Phase 4 doc? Paraphrase is not sufficient — the JSONL is local-only and the /compact summary strips cadence and specificity. The user's exact words are the grounding for every claim about what they wanted.
 
 If any row is unchecked, Phase 2 is incomplete. **Optimize the thread list for operational completeness, NOT for prose quality.** The narrative arc lives in the Session Summary in Phase 4; the threads list lives for the next instance's worklist. See anti-pattern "Silent Omission via Conciseness" below.
@@ -575,8 +576,10 @@ EXHAUSTIVENESS CHECKLIST before declaring complete.*
 ### Deferred (exhaustive — see Phase 2 for scan sources)
 <If ≤10 items keep flat; otherwise categorize.>
 
-### Carried forward from prior handover
-1. **<thread>** — original handover line; current status (resolved / still pending / obsoleted by <X>)
+### Carried forward from prior handover (BINDING TABLE — no pointers)
+| Prior thread | Status | Note |
+|---|---|---|
+| <thread> | resolved-this-session / still-pending / obsoleted-by-<X> / **newly-timely** | <one line; for newly-timely: what shipped that unblocked it> |
 
 ## Key Context
 <Non-obvious information the next instance needs>
