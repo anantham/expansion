@@ -2,7 +2,7 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.16.0
+version: 1.16.1
 changelog:
   1.16.0 (2026-07-24): Carried-forward reconciliation is now BINDING-TABULAR — a
   pointer to the prior handover is NOT reconciliation. Every prior thread gets a
@@ -408,7 +408,7 @@ This is a SECONDARY auditing pass *after* the scan-for items + categorization. T
 - [ ] Every commit message containing "TODO" / "XXX" / "FIXME" → promoted to a thread?
 - [ ] Every test added with `pytest.mark.skip` / `xfail` / similar → captured as a thread with the unblock condition?
 - [ ] Every external account / cookie / persistent context modified by automation → operator cleanup step documented?
-- [ ] Every prior-handover thread → a STATUS CELL in the Carried-forward table (resolved-this-session / still-pending / obsoleted-by-X / **newly-timely**). A pointer to the old handover is NOT reconciliation — pointer-compression is a 3×-ledgered failure mode, and its worst loss is the NEWLY-TIMELY class: items parked as "queued behind X" where X shipped this very session. Only per-item touch reveals a flipped dependency.
+- [ ] Every prior-handover thread → a STATUS CELL in the Carried-forward table (resolved-this-session / still-pending / obsoleted-by-X / **newly-timely**). A pointer to the old handover is NOT reconciliation — pointer-compression is a 3×-ledgered failure mode, and its worst loss is the NEWLY-TIMELY class: items parked as "queued behind X" where X shipped this very session. Only per-item touch reveals a flipped dependency. (Auto-memory / Option-D project with no HANDOVER.md? The prior-handover-equivalent is the MEMORY.md index + entries — reconcile those.)
 - [ ] Every user decision arc this session (scope-setting, redirect, ratification, "go ahead"-style authorization, "why" rationale) → captured as a **verbatim quote** with timestamp in Phase 4 doc? Paraphrase is not sufficient — the JSONL is local-only and the /compact summary strips cadence and specificity. The user's exact words are the grounding for every claim about what they wanted.
 
 If any row is unchecked, Phase 2 is incomplete. **Optimize the thread list for operational completeness, NOT for prose quality.** The narrative arc lives in the Session Summary in Phase 4; the threads list lives for the next instance's worklist. See anti-pattern "Silent Omission via Conciseness" below.
@@ -577,6 +577,7 @@ EXHAUSTIVENESS CHECKLIST before declaring complete.*
 <If ≤10 items keep flat; otherwise categorize.>
 
 ### Carried forward from prior handover (BINDING TABLE — no pointers)
+*No HANDOVER.md (auto-memory / Option-D project)? The prior-handover-equivalent IS the auto-memory files (MEMORY.md index + entries) — reconcile THEIR pending items here.*
 | Prior thread | Status | Note |
 |---|---|---|
 | <thread> | resolved-this-session / still-pending / obsoleted-by-<X> / **newly-timely** | <one line; for newly-timely: what shipped that unblocked it> |

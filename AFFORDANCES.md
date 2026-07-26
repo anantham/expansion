@@ -47,3 +47,11 @@ Plugin-based runner for periodic local jobs — backups, vault maintenance, metr
 - **When NOT to use:** event-driven work (use a queue), or anything that needs to run on a different machine.
 
 Last verified: 2026-05-18
+
+---
+
+## Fleet AI service endpoints (STT / LLM)
+
+Before standing up STT or a local-LLM integration, the M5 & Asus already serve shared endpoints on the tailnet (M5 STT `:5095` mlx-whisper · `:5096` fluidaudio · `:5098` large-v3+VAD-quality-tier · ollama `:11434`) — **live inventory, ports & tailnet exposure = the "M5 shared services" standing fact in `~/.claude-sync/SHARED-MEMORY.md`** (auto-loaded every session; single source of truth, don't duplicate it here).
+
+Last verified: 2026-07-09
