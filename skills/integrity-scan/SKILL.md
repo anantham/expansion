@@ -2,7 +2,7 @@
 name: integrity-scan
 description: Audit whether the code tells the truth about itself — names that lie (validate_* that doesn't validate, get_* with side effects), docstrings and comments claiming behavior or guarantees the code no longer has, comments citing mechanisms that exist but are neutralized, one concept under many names, the same logic forked under different names, and band-aid layers each sensible in isolation that together form unnecessary complexity. Use after high-velocity or AI-assisted development, before onboarding someone, or when the code "reads fine" but keeps surprising people.
 when_to_use: when user says "integrity scan", "inconsistent naming", "the docstrings lie", "comments are stale", "unnecessary complexity", "layers of patches", "this code reads fine but surprises me", "incoherent", or after a sprint of AI-generated code
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Integrity Scan
@@ -82,7 +82,7 @@ The docstring is the contract. Check it against the body — especially **guaran
 
 ```bash
 # Docstrings making strong claims: verify EACH against the body.
-grep -rnE "guarantee|guaranteed|always|never|ensures|atomic|thread-safe|idempotent|
+grep -rnE "guarantee|guaranteed|always|never|ensures|atomic|thread-safe|idempotent|\
 sanitiz|validated|verified|cannot|must not|safe to" --include="*.py" . \
   | grep -viE "test_|\.venv" | head -50
 ```
@@ -111,7 +111,7 @@ The cruelest class: the comment names a real, existing safety net — which no l
 
 ```bash
 # Comments that point AT something. Then verify the target still does what's implied.
-grep -rnE "#.*(handled by|see |guarded by|covered by|protected by|watchdog|fallback|
+grep -rnE "#.*(handled by|see |guarded by|covered by|protected by|watchdog|fallback|\
 retry|elsewhere|upstream|downstream|the .* will)" --include="*.py" . \
   | grep -viE "test_|\.venv" | head -40
 ```
@@ -171,14 +171,17 @@ implementation that is *dead*, while live callers each roll their own.
 Each layer was added for a real bug. Together they are unnecessary complexity.
 
 ```bash
-# Wrappers around wrappers: functions that only delegate
-grep -rnA3 "def [a-z_]*\(" --include="*.py" . | grep -B1 -E "^\s*return [a-z_]+\(.*\)$" \
+# Wrappers around wrappers: functions that only delegate.
+# NB use [(] [)] not \( \) — in -E mode BSD/macOS grep reads escaped parens as a group
+# and dies with "parentheses not balanced"; and [[:space:]] not \s (\s is GNU-only).
+grep -rnA3 "def [a-z_]*[(]" --include="*.py" . \
+  | grep -B1 -E "^[[:space:]]*return [a-z_]+[(].*[)]$" \
   | grep -viE "test_|\.venv" | head -30
 # Defensive re-checks: the same guard repeated down a call chain
 grep -rnE "if .* is None:\s*return|if not .*:\s*return( None)?$" --include="*.py" . \
   | grep -viE "test_|\.venv" | wc -l
 # "Just in case" / "shouldn't happen" markers — each marks a layer nobody understood
-grep -rnE "#.*(just in case|shouldn't happen|should never|defensive|belt and braces|
+grep -rnE "#.*(just in case|shouldn't happen|should never|defensive|belt and braces|\
 paranoia|safety net|double check|extra guard)" --include="*.py" . | head -25
 ```
 
@@ -196,8 +199,9 @@ preserve it forever. Prove reachability before keeping.
 ```bash
 grep -rnE "TODO|FIXME|XXX|HACK|temporary|for now|will be removed|deprecated|legacy" \
   --include="*.py" . | grep -viE "\.venv|node_modules" | head -40
-# Age them — a 2-year-old "temporary" is permanent, and its comment is a lie
-git log -1 --format="%ar" -S "TODO" -- <file>
+# Age them — a 2-year-old "temporary" is permanent, and its comment is a lie.
+# (Set f=<path>; a literal <file> placeholder makes bash attempt a redirection.)
+f=path/to/file.py; git log -1 --format="%ar" -S "TODO" -- "$f"
 ```
 
 Also: version-stamped comments (`# as of v2.1`) long past, dated notes whose date has
@@ -261,6 +265,14 @@ restate honestly with a current date and an owner.
 - **Dogfood your detection.** Before reporting a signature clean, run it against a place you
   already know has the defect and confirm it fires. An audit that can't reproduce a known
   instance is measuring nothing.
+- **The greps here are instruments — verify them before trusting a zero.** Three silent
+  failure modes, all of which shipped in this skill's first draft and were caught only by
+  executing every block: a **quoted regex split across lines** needs a trailing `\` (else
+  the newline joins the pattern, grep exits 2, and you get zero hits — the same pattern on
+  one line found 603); **`\(`/`\)` inside `-E` are not portable** (BSD/macOS grep: "parentheses
+  not balanced" — use `[(]`/`[)]`); **`\s` is GNU-only** (use `[[:space:]]`). A broken
+  instrument does not error loudly — it returns a clean bill of health, which is the exact
+  defect class this skill exists to find.
 
 ## Related Skills
 

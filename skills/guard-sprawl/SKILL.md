@@ -2,7 +2,7 @@
 name: guard-sprawl
 description: Find scattered enforcement of a single invariant — N competing guards for one rule, exemption flags that defeat several at once, one setting under several env-var names/defaults, one resource with several definitions, overlapping thresholds owned by different components, and settings whose meaning depends on which process reads them. Use when config feels duplicated, when a documented setting mysteriously didn't apply, after an incident where "the safety net didn't fire", or before refactoring a subsystem that has accumulated guards.
 when_to_use: when user says "competing configurations", "why are there so many ways to do this", "band aid after band aid", "complexity spiral", "the guard didn't fire", "config drift", "duplicate guards", "this setting didn't take effect", or before consolidating a subsystem
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Guard Sprawl
@@ -60,7 +60,7 @@ watchdogs, admission checks, retry caps, circuit breakers, cleanup jobs, cron ta
 
 ```bash
 # Guards usually name themselves. Sweep for the vocabulary, then read each hit.
-grep -rnE "watchdog|guard|_limit|threshold|max_|timeout|evict|reap|prune|circuit|
+grep -rnE "watchdog|guard|_limit|threshold|max_|timeout|evict|reap|prune|circuit|\
 backoff|admission|quota|throttle" --include="*.py" --include="*.ts" --include="*.go" . \
   | grep -viE "test_|_test\.|\.min\.|node_modules|\.venv" | head -60
 
@@ -82,7 +82,7 @@ leverage defect in a sprawled system, because **one exemption can defeat every m
 at once** — and it usually reads as a thoughtful optimisation.
 
 ```bash
-grep -rnE "keep_warm|keepalive|KEEP_|allowlist|allow_list|whitelist|skip_|_skip|
+grep -rnE "keep_warm|keepalive|KEEP_|allowlist|allow_list|whitelist|skip_|_skip|\
 exempt|exclude|ignore_|never_|pinned|protect|no_evict|do_not|permanent" \
   --include="*.py" --include="*.ts" . | grep -viE "test_|node_modules|\.venv" | head -40
 ```
@@ -267,6 +267,16 @@ Mid-audit, the obvious fix for "the guard didn't fire" is to **add a guard**. Re
   audit that cannot reproduce a known instance is measuring nothing — and a silent `head`,
   a stale path, or a too-narrow `--include` will produce a confident clean bill of health.
   Expected-red first, then trust the greens.
+- **The commands in this file are instruments; verify them before trusting a zero.** Three
+  ways they fail *silently* — all three shipped in the first draft of this skill and were
+  caught only by executing every block:
+  1. **A quoted regex split across lines needs a trailing `\`.** Without it the newline
+     becomes part of the pattern; GNU grep exits 2 and matches nothing. Same command on one
+     line found 1209 hits, split across two found **0**.
+  2. **`\(` / `\)` inside `-E` are not portable** — BSD/macOS grep reads them as a group and
+     dies "parentheses not balanced". Use `[(]` / `[)]`.
+  3. **`\s` is a GNU extension** — use `[[:space:]]`.
+  A broken instrument doesn't error loudly, it returns a clean bill of health.
 
 ## Related Skills
 
