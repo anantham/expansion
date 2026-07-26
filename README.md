@@ -17,6 +17,7 @@ on demand when the task matches — or that you invoke explicitly with `/expansi
 | **doc-prover** | `/expansion:doc-prover` | Creates formal `ASSERTION` proof files that cite specific code lines for invariants, security boundaries, privacy, or correctness — and re-verifies them when code changes. |
 | **surface-tech-debt** | `/expansion:surface-tech-debt` | Systematic codebase review across seven dimensions: pattern conflicts, test gaps, band-aid fixes, security, docs, monolith growth, and complexity spirals. |
 | **test-audit** | `/expansion:test-audit` | Audits the *quality* of an existing test suite (not just its existence) — vacuous/change-detector/over-mocked/unfocused/unreadable tests, weak values, non-hermetic tests, and risk gaps. Grounded in the Google Testing Blog. |
+| **guard-sprawl** | `/expansion:guard-sprawl` | Finds scattered enforcement of one invariant: N competing guards, exemption flags that defeat several at once, one setting under several env names/defaults, one resource with several definitions, overlapping thresholds — and settings whose meaning depends on **which process reads them** (the config-file-vs-standalone-task gap behind "but I set that!" bugs). Produces a consolidation plan. |
 | **postmortem** | `/expansion:postmortem` | After a silent bug, traces root cause through git history, identifies human–agent miscommunication, and searches for downstream data damage. |
 | **canvas-diagrams** | `/expansion:canvas-diagrams` | Generates Obsidian Canvas (`.canvas`) files for UX flows, data flows, and testing-infrastructure visualization. |
 | **handover** | `/expansion:handover` | Graceful context transfer before session end or compaction — commits work, documents pending threads, captures learnings, prepares the next instance. |
@@ -26,7 +27,9 @@ on demand when the task matches — or that you invoke explicitly with `/expansi
 The doc skills are designed to compose: **doc-audit** finds gaps → **doc-writer** fills them →
 **doc-prover** locks down the invariants that matter. **surface-tech-debt** and **test-audit**
 are complementary code-health passes (the former asks *"is there a test?"*, the latter *"is the
-test any good?"*).
+test any good?"*). **surface-tech-debt** and **guard-sprawl** compose the same way: the former
+*discovers* that a subsystem has accumulated guards, the latter goes deep on that one failure
+class and returns a consolidation plan.
 
 ## Install
 
