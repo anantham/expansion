@@ -2,7 +2,7 @@
 name: Surface Tech Debt
 description: Systematic codebase review for technical debt - pattern conflicts, test gaps, band-aid fixes, security issues, and documentation holes. Use after rapid development sprints or before major refactors.
 when_to_use: when user says "tech debt", "review codebase", "what needs cleanup", "surface issues", "code health", or after a period of rapid development
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Surface Tech Debt
@@ -20,6 +20,24 @@ High-velocity development accumulates debt. This skill performs a systematic swe
 - Onboarding to a new codebase (map the landmines)
 - Periodic hygiene (monthly/quarterly review)
 - After discovering a bug that "shouldn't have happened"
+
+## Scope: this skill is a TRIAGE ROUTER
+
+Seven dimensions at **breadth**, deliberately shallow. Several now have a narrow-and-deep
+sibling skill, because one broad sweep reliably under-diagnoses the failure classes that
+recur most in high-velocity and AI-assisted development. Use this pass to decide *which*
+deep scan to run — then run it rather than concluding here.
+
+| This dimension | Run for depth |
+|---|---|
+| D1 Pattern Conflicts (naming / shape drift) | **`/expansion:integrity-scan`** — also lying names, docstring divergence, stale comments, forked logic |
+| D2 Test Coverage Gaps ("is there a test?") | **`/expansion:test-audit`** ("is the test any *good*?") |
+| D3 Band-Aid Fixes | **`/expansion:integrity-scan`** (layering, dead defensive guards) + **`/expansion:guard-sprawl`** (competing enforcement of one invariant) |
+| D5 Documentation Gaps | **`/expansion:doc-audit`** (doc files) · **`/expansion:integrity-scan`** (in-code claims) |
+| D7 Complexity Spirals | **`/expansion:guard-sprawl`** — N mechanisms per invariant, exemption flags, config-visibility-by-process-ancestry |
+
+D4 (security) and D6 (monolith growth) have no deep sibling yet — treat findings there as
+final rather than as a referral.
 
 ## The Seven Dimensions
 
