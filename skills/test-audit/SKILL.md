@@ -2,7 +2,7 @@
 name: test-audit
 description: Audit the QUALITY of an existing test suite (not just its existence) — finds tests that can't fail, change-detector/over-mocked tests, unfocused tests, unreadable tests, unactionable failures, weak test values, non-hermetic tests, and risk/coverage gaps. Grounded in the Google Testing Blog / "Testing on the Toilet" canon. Use after a test sprint, before trusting a suite, or when green tests still ship bugs.
 when_to_use: when user says "audit tests", "test quality", "are these tests any good", "review the tests", "why did green tests miss this bug", "test smells", or before relying on a suite for a refactor
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Test Audit
@@ -19,7 +19,7 @@ there a test?"*). This skill asks the harder question: **"if the code broke, wou
 notice — and would the failure tell me what broke?"**
 
 Every dimension below is grounded in a specific Google Testing Blog / Testing-on-the-Toilet
-(TotT) post; sources are listed at the bottom so findings are citable, not opinion.
+(TotT) post, cited inline at each dimension, so findings are citable, not opinion.
 
 **Announce at start:** "Running test-quality audit across 8 dimensions: vacuous tests, brittle/change-detector tests, unfocused tests, unreadable tests, unactionable failures, weak values, non-hermetic tests, and risk/coverage gaps."
 
@@ -107,6 +107,21 @@ grep -rnE '\.then\(.*expect\(' --include='*.test.*' --include='*.spec.*'
 # Bare except around the act
 grep -rn -A2 'except' --include='test_*.py' . | grep -E 'pass$|continue$'
 ```
+**Prove it red.** Grep and reading find *suspected* vacuous tests; only **execution** proves a
+test can fail. Revert the fix (`git stash`, or check out the pre-fix file) and run the new test.
+If it still passes, it asserts nothing the fix changed.
+
+Read the split, not just the failure count:
+
+| Result | Meaning |
+|--------|---------|
+| **All red** | You changed more than you meant to — check the blast radius |
+| **Some red, rest green in BOTH versions** | The target: change proven *effective* AND proven *scoped* |
+| **All green** | Vacuous. Do not ship it as evidence of anything |
+
+Cheaper than mutation testing (D8) and answers a sharper question: not "could some mutant
+survive" but "does this test catch the bug I just fixed."
+
 **Source:** *Choosing Values for Robust Tests*. **Severity:** usually **P0/P1** — a vacuous
 test is worse than no test because it reads as coverage.
 
@@ -399,6 +414,7 @@ them unless the user asks (then offer to `--fix` one dimension at a time, or han
 - [ ] Ran candidate greps for all 8 dimensions
 - [ ] **Read** each candidate to confirm the smell (no unread grep-hit findings)
 - [ ] Checked vacuous/default-value traps (D1, D6) — would a no-op impl still pass?
+- [ ] Red-proved any test written for a fix: ran it against the pre-fix code (D1)
 - [ ] Checked mock/verify density and whole-object equality (D2)
 - [ ] Checked focus, readability, names, collapsed assertions (D3–D5)
 - [ ] Checked hermeticity / sleeps / order-dependence (D7)
@@ -406,26 +422,8 @@ them unless the user asks (then offer to `--fix` one dimension at a time, or han
 - [ ] Noted testability root causes (DI) where over-mocking is pervasive
 - [ ] Triaged P0–P3; produced the report; left fixes for the human unless asked
 
-## Sources (Google Testing Blog / Testing on the Toilet)
+## Sources
 
-| Dimension | Post | URL |
-|-----------|------|-----|
-| Core lens, D5 | Test Failures Should Be Actionable | https://testing.googleblog.com/2024/05/test-failures-should-be-actionable.html |
-| D1, D6 | Choosing Values for Robust Tests | https://testing.googleblog.com/2026/06/choosing-values-for-robust-tests.html |
-| D2 | Change-Detector Tests Considered Harmful | https://testing.googleblog.com/2015/01/testing-on-toilet-change-detector-tests.html |
-| D2 | Test Behavior, Not Implementation | https://testing.googleblog.com/2013/08/testing-on-toilet-test-behavior-not.html |
-| D2 | Don't Overuse Mocks | https://testing.googleblog.com/2013/05/testing-on-toilet-dont-overuse-mocks.html |
-| D2 | Prefer Testing Public APIs Over Implementation-Detail Classes | https://testing.googleblog.com/2015/01/testing-on-toilet-prefer-testing-public.html |
-| D2 | Prefer Narrow Assertions in Unit Tests | https://testing.googleblog.com/2024/04/prefer-narrow-assertions-in-unit-tests.html |
-| D3 | Test Behaviors, Not Methods | https://testing.googleblog.com/2014/04/testing-on-toilet-test-behaviors-not.html |
-| D3 | Keep Tests Focused | https://testing.googleblog.com/2018/06/testing-on-toilet-keep-tests-focused.html |
-| D4 | Tests Too DRY? Make Them DAMP! | https://testing.googleblog.com/2019/12/testing-on-toilet-tests-too-dry-make.html |
-| D4 | Don't Put Logic in Tests | https://testing.googleblog.com/2014/07/testing-on-toilet-dont-put-logic-in.html |
-| D4 | Keep Cause and Effect Clear | https://testing.googleblog.com/2017/01/testing-on-toilet-keep-cause-and-effect.html |
-| D5 | Writing Descriptive Test Names | https://testing.googleblog.com/2014/10/testing-on-toilet-writing-descriptive.html |
-| D7 | Test Sizes | https://testing.googleblog.com/2010/12/test-sizes.html |
-| D8 | Risk-Driven Testing | https://testing.googleblog.com/2014/05/testing-on-toilet-risk-driven-testing.html |
-| D8 | Code Coverage Best Practices | https://testing.googleblog.com/2020/08/code-coverage-best-practices.html |
-| Cross-cutting | Construct with Collaborators, Call with Work | https://testing.googleblog.com/2026/05/construct-with-collaborators-call-with.html |
-| Cross-cutting | The Way of TDD | https://testing.googleblog.com/2026/03/the-way-of-tdd.html |
+All dimensions cite their source post inline (**Source:** lines above). Every one is from
+the Google Testing Blog / Testing on the Toilet series: https://testing.googleblog.com
 ```
