@@ -2,19 +2,19 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.17.2
+version: 1.17.3
 changelog:
+  1.17.3 (2026-08-09): Phase-2 raw-JSONL audit now globs ALL *.jsonl in the
+  project dir (a compacted/continued session writes one file per compaction),
+  not just <session-id>.jsonl — an Epistack handover spanned 3 transcript files
+  over ~3 weeks; a single-file read drops most of the arc. Subtraction: 1.17.1
+  changelog entry rotated to git log (cap at 2).
   1.17.2 (2026-08-09): Version-announce fallback (frontmatter may not load
   with the body — read it from disk, never guess); JSONL census skip-list
   gains <bash-input>/<bash-stdout>; sibling-repo handovers = one full doc +
   pointers (duplicates drift). Subtractions: Phase-1 step-1 worktree recipe
   now references step 4's; triage-matrix verbatim row compressed; changelog
   capped at 2 entries per own rule (git history holds the rest).
-  1.17.1 (2026-08-09): Phase-0 BINDING GATE gains a resume exception — a
-  handover compacted mid-flight must NOT re-issue the capture proposal it
-  already got approved; the gate is once-per-handover, not
-  once-per-agent-instance. Lived this session (compacted mid Phase-3, proposal
-  approved pre-compaction with "No go ahead.").
 
 ---
 
@@ -388,15 +388,17 @@ Then ask the operator:
 
 7. **Raw-JSONL audit (BINDING — operator-directed ×2).** Before declaring the
    inventory exhaustive, extract every REAL user message from the session's
-   raw transcript and diff against what the handover doc carries. The JSONL at
-   `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` survives compaction;
-   your post-compaction memory does not — the 2026-07-28 audit found its
+   raw transcript and diff against what the handover doc carries. A compacted/
+   continued session writes MULTIPLE `~/.claude/projects/<encoded-cwd>/*.jsonl`
+   files (one per compaction) — glob and union ALL of them (by mtime, dedup on
+   the first ~60 chars), NOT just the current `<session-id>.jsonl`. They survive
+   compaction; your post-compaction memory does not — the 2026-07-28 audit found its
    window covered only 2 of the session's 5 days, and the sweep recovered two
    dropped threads (an unbuilt lane + a pending credential rotation with the
    secret sitting in the transcript) plus the session's OPENING directive that
    no doc had quoted.
 
-   Recipe (~15 lines of Python): iterate JSONL lines, keep `type=="user"`,
+   Recipe (~15 lines of Python): iterate lines across ALL matched files, keep `type=="user"`,
    take `message.content` text blocks, skip prefixes `<task-notification` /
    `<system-reminder` / `<local-command` / `[Image: source` / `Caveat:` /
    `<command-name>` / `This session is being continued` / `[Request
