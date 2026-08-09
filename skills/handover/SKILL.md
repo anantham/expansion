@@ -2,33 +2,20 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.17.1
+version: 1.17.2
 changelog:
+  1.17.2 (2026-08-09): Version-announce fallback (frontmatter may not load
+  with the body — read it from disk, never guess); JSONL census skip-list
+  gains <bash-input>/<bash-stdout>; sibling-repo handovers = one full doc +
+  pointers (duplicates drift). Subtractions: Phase-1 step-1 worktree recipe
+  now references step 4's; triage-matrix verbatim row compressed; changelog
+  capped at 2 entries per own rule (git history holds the rest).
   1.17.1 (2026-08-09): Phase-0 BINDING GATE gains a resume exception — a
   handover compacted mid-flight must NOT re-issue the capture proposal it
   already got approved; the gate is once-per-handover, not
   once-per-agent-instance. Lived this session (compacted mid Phase-3, proposal
   approved pre-compaction with "No go ahead.").
-  1.17.0 (2026-07-28): Phase 2 gains a BINDING raw-JSONL audit step — extract
-  all real user messages from the session transcript and diff against the
-  handover doc before calling it exhaustive. Operator directed this twice
-  (2026-07-25, 2026-07-28); the first run of the audit recovered two dropped
-  threads and a never-quoted opening directive. Includes the extraction
-  recipe, the secrets caveat, and the tail-truncation trap.
-  1.16.0 (2026-07-24): Carried-forward reconciliation is now BINDING-TABULAR — a
-  pointer to the prior handover is NOT reconciliation. Every prior thread gets a
-  status cell (resolved / still-pending / obsoleted-by-X / NEWLY-TIMELY). Grounded
-  in the 3rd ledgered instance of pointer-compression: a handover pointed at a
-  10-item tail instead of reconciling, and the operator's "is this exhaustive
-  though?" surfaced items whose relevance had FLIPPED ("queued with v2.2" — v2.2
-  had shipped that same session). Newly-timely items are exactly what pointers
-  structurally cannot surface. Subtraction: changelog rotated (1.15.0 → git log).
-  1.15.1 (2026-07-19): Anti-pattern added — unbounded "verified green" claims.
-  A verification claim must name the commands run, the SHAs they ran against,
-  AND the known not-verified surface. Grounded in a trial-merge verdict that
-  named tsc+tests but not the never-run vite build, where the real blocker
-  (an unresolvable gitignored import) lived. Subtraction: Background-Processes
-  example compressed (restated Principle 4's bolded guidance).
+
 ---
 
 # Handover
@@ -39,7 +26,7 @@ You are about to lose this context. Whether due to compaction, session end, or c
 
 This skill ensures continuity across instances. The next Claude picking up this conversation should be able to continue as if no context was lost.
 
-**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above so the user can verify which skill version is actually loaded.
+**Announce at start:** "Running handover **v\<version\>** — committing work, documenting threads, and capturing learnings for the next instance." Replace `<version>` literally with the value from this skill's frontmatter `version:` field above so the user can verify which skill version is actually loaded. If the frontmatter was not included in the loaded body (common), read `version:` from the skill file on disk — never guess it.
 
 ## Related Skills
 
@@ -118,7 +105,7 @@ by a fresh agent reading the diff.
 | Rich handover narrative with the *why* | Single-file refactors with clear specs |
 | Project / cross-project memory entries | Continuation of the work you're handing over |
 | Decision rationale that won't survive diff alone | Anything blocked on user input |
-| **Verbatim user quotes** with timestamps — directives in the user's own words; the JSONL is local-only and the /compact summary paraphrases lossily | Lossy paraphrases / "user wanted X" summarizations |
+| **Verbatim user quotes** with timestamps (rule detailed in Phase 4 template) | Lossy paraphrases / "user wanted X" summarizations |
 
 **Anti-patterns in this phase:**
 - Continuing the work you're handing over (that's what handover ends)
@@ -194,9 +181,8 @@ have to ask "is that all?"**
    all session:
    - Do NOT switch the shared checkout back (clobbers their uncommitted WIP), and
      do NOT commit onto their branch (pollutes their PR).
-   - Land your commit on the target branch via a SEPARATE worktree:
-     `git worktree add <tmp> <target>; git -C <tmp> cherry-pick <sha>` (or write the
-     artifact there) `; git -C <tmp> push origin <target>; git worktree remove <tmp> --force`.
+   - Land your commit on the target branch via a SEPARATE scratch worktree
+     (cherry-pick or write the artifact there; full recipe in step 4).
    - After a prod-restart-from-session, the running app serves whatever branch the
      checkout sits on — verify it's the intended one.
 
@@ -414,7 +400,7 @@ Then ask the operator:
    take `message.content` text blocks, skip prefixes `<task-notification` /
    `<system-reminder` / `<local-command` / `[Image: source` / `Caveat:` /
    `<command-name>` / `This session is being continued` / `[Request
-   interrupted`. Print `timestamp | first-150-chars` as the census; re-extract
+   interrupted` / `<bash-input` / `<bash-stdout`. Print `timestamp | first-150-chars` as the census; re-extract
    full text only for decision-bearing candidates. Diff against BOTH handover
    trails (memory-side `_session-handover-*.md` AND repo-side
    `docs/handovers/`). Two cautions: (a) secrets pasted in chat appear in the
@@ -742,6 +728,8 @@ If session spanned multiple repos:
 1. Run commit phase for each
 2. Note cross-project dependencies
 3. Document in each project's handover location
+   — for tightly-coupled sibling repos: ONE full doc + pointer docs in the
+   others (duplicate full docs drift apart; the pointer names the primary).
 
 ## Anti-Patterns
 
