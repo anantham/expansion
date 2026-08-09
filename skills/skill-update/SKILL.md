@@ -2,8 +2,12 @@
 name: Skill Update
 description: Meta-skill for learning from skill usage. Tracks uncertainties, human interventions, and gaps discovered during use, then proposes concrete skill patches.
 when_to_use: when actively using another skill and noticing ambiguities, gaps, or places where the skill's instructions were insufficient or wrong
-version: 1.2.0
+version: 1.2.1
 changelog:
+  1.2.1 (2026-08-09): Phase 4 folds version-bump + commit into ONE atomic step
+  and names the bumped-but-uncommitted file as this repo's #1 recurring debt (3×
+  landed unbundled); new anti-pattern row. Subtraction: merged Phase-4 steps 3+4
+  (5 steps -> 4). Net +5/-2.
   1.2.0 (2026-07-03): retrospective mode (/mu at session end — reconstruct, verify,
   never fake the log) + mandatory Phase 2c Subtraction Pass (every patch set names a
   removal/compression candidate, additions state what they supersede, report net line
@@ -120,14 +124,19 @@ For each patch, show:
 On user approval:
 1. Read the current skill file
 2. Apply approved patches
-3. Bump the skill's version (patch increment for fixes, minor for new capabilities)
-4. Commit with message: `skill(<name>): <summary of changes>`
-5. If the skill is in a plugin repo (like expansion), push the update
+3. Bump the version (patch for fixes, minor for new capabilities) AND commit in
+   the SAME motion — `skill(<name>): <summary>`. A bumped-but-uncommitted
+   `version:` is this repo's #1 recurring debt: it has been landed unbundled 3×
+   as "complete-but-uncommitted" cleanup by a later session. The bump is the
+   commit's trigger, not a standalone drafting edit — never end a session with a
+   version bumped in-file but not committed.
+4. If the skill is in a plugin repo (like expansion), push the update
 
 ## Anti-Patterns
 
 | Don't | Do Instead |
 |-------|-----------|
+| Bump `version:` in-file, defer the commit | The bump IS the commit trigger — commit atomically; a bumped-uncommitted file is silent debt a later session must untangle |
 | Stop working to write long reflections | Brief inline note, keep delivering |
 | Propose patches for one-off edge cases | Only patch recurring patterns |
 | Rewrite the entire skill based on one use | Targeted patches with rationale |
