@@ -2,8 +2,13 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.17.0
+version: 1.17.1
 changelog:
+  1.17.1 (2026-08-09): Phase-0 BINDING GATE gains a resume exception — a
+  handover compacted mid-flight must NOT re-issue the capture proposal it
+  already got approved; the gate is once-per-handover, not
+  once-per-agent-instance. Lived this session (compacted mid Phase-3, proposal
+  approved pre-compaction with "No go ahead.").
   1.17.0 (2026-07-28): Phase 2 gains a BINDING raw-JSONL audit step — extract
   all real user messages from the session transcript and diff against the
   handover doc before calling it exhaustive. Operator directed this twice
@@ -145,6 +150,14 @@ still has to ask "is that exhaustive?", this self-check was skipped.
 
 You may NOT proceed to Phase 1 (commit checkpoint) until that triaged
 proposal is made and the user has pruned/redirected it.
+
+**Exception — resuming an interrupted handover.** Handover fires near the
+context limit, so being compacted *mid-handover* is a likely path, not a
+corner case. If the session summary/context shows the Phase-0 proposal was
+already made and approved this session, do NOT re-issue it — resume at the
+mechanical phase you were in. The gate is once-per-handover, not
+once-per-agent-instance; re-asking for a capture proposal the user already
+approved burns the exact dying context this skill exists to protect.
 
 The proposal must contain real synthesis — a cross-decision pattern, a
 posture spanning multiple choices this session, a rationale that won't
