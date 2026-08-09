@@ -2,8 +2,14 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.16.1
+version: 1.17.0
 changelog:
+  1.17.0 (2026-07-28): Phase 2 gains a BINDING raw-JSONL audit step — extract
+  all real user messages from the session transcript and diff against the
+  handover doc before calling it exhaustive. Operator directed this twice
+  (2026-07-25, 2026-07-28); the first run of the audit recovered two dropped
+  threads and a never-quoted opening directive. Includes the extraction
+  recipe, the secrets caveat, and the tail-truncation trap.
   1.16.0 (2026-07-24): Carried-forward reconciliation is now BINDING-TABULAR — a
   pointer to the prior handover is NOT reconciliation. Every prior thread gets a
   status cell (resolved / still-pending / obsoleted-by-X / NEWLY-TIMELY). Grounded
@@ -380,6 +386,28 @@ Then ask the operator:
    - **`canvas.md`-style "open questions" sections** in any architecture doc.
 
 6. **Explicit decisions NOT to do** — items considered and deliberately skipped. Capture these separately so a future instance doesn't waste a turn re-proposing them.
+
+7. **Raw-JSONL audit (BINDING — operator-directed ×2).** Before declaring the
+   inventory exhaustive, extract every REAL user message from the session's
+   raw transcript and diff against what the handover doc carries. The JSONL at
+   `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` survives compaction;
+   your post-compaction memory does not — the 2026-07-28 audit found its
+   window covered only 2 of the session's 5 days, and the sweep recovered two
+   dropped threads (an unbuilt lane + a pending credential rotation with the
+   secret sitting in the transcript) plus the session's OPENING directive that
+   no doc had quoted.
+
+   Recipe (~15 lines of Python): iterate JSONL lines, keep `type=="user"`,
+   take `message.content` text blocks, skip prefixes `<task-notification` /
+   `<system-reminder` / `<local-command` / `[Image: source` / `Caveat:` /
+   `<command-name>` / `This session is being continued` / `[Request
+   interrupted`. Print `timestamp | first-150-chars` as the census; re-extract
+   full text only for decision-bearing candidates. Diff against BOTH handover
+   trails (memory-side `_session-handover-*.md` AND repo-side
+   `docs/handovers/`). Two cautions: (a) secrets pasted in chat appear in the
+   census — never copy them onward, but DO flag that they're in the transcript;
+   (b) truncating the census (`tail -40`) silently under-counts — the same
+   session mis-reported 39 flips as the total when the real count was 121.
 
 **Long lists: categorize.** If the inventory has more than ~10 items, a flat list becomes unscannable. Group by axis the next instance actually cares about — typical categories:
 
