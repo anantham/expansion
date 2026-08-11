@@ -2,8 +2,18 @@
 name: Handover
 description: Graceful context transfer before session end or compaction. Commits work, documents pending threads, captures learnings, and prepares the next instance to continue seamlessly.
 when_to_use: when user says "handover", "wrap up", "closing session", or when context is approaching 90% capacity and compaction is imminent
-version: 1.17.3
+version: 1.18.0
 changelog:
+  1.18.0 (2026-08-11): Multi-agent hardening. A commit-blocking lock hook is
+  a SIGNAL -- announce, diff every file, stage by name, THEN override (never
+  override first; the guard may be cwd-keyed and fire for another repo).
+  Phase 1a gains a concurrency gate: with peers live, do not offer the
+  merged-branch sweep at all (a peer may hold a worktree on it). Background
+  tasks: read a TERMINATED task's result before writing the claim -- a
+  verified failure beats an unchecked "unverified". Two exhaustiveness rows:
+  artifact durability across session/job teardown (a 74-contact undo snapshot
+  sat in a pre-fork job tmp dir) and peer-owned state / relayed-not-witnessed
+  decisions. Grounded in a 7-live-agent session.
   1.17.3 (2026-08-09): Phase-2 raw-JSONL audit now globs ALL *.jsonl in the
   project dir (a compacted/continued session writes one file per compaction),
   not just <session-id>.jsonl — an Epistack handover spanned 3 transcript files
@@ -204,6 +214,18 @@ have to ask "is that all?"**
    same checkout. Wrongly committing their state is worse than leaving
    it dirty.
 
+   **If a hook or lock BLOCKS your commit, that is a signal, not an obstacle.**
+   A commit-blocking guard in a shared checkout is telling you peers have
+   uncommitted work. Do NOT reflexively reach for the override flag: first
+   announce your intent to the peers (agent-presence post or equivalent), then
+   `git diff <file>` EVERY file you intend to stage to prove it carries only
+   your edits, stage them by name, and only then override -- naming in the
+   commit message that you staged by name in a shared tree. An override used
+   before that diff is how a peer's half-finished work ships under your
+   message. (The guard may also be cwd-keyed rather than repo-keyed: it can
+   fire for a DIFFERENT repo than the one you are committing in -- verify
+   which repo it actually named before deciding.)
+
    **The index itself can drift between `git add` and `git commit`.** In a
    checkout shared with parallel agents, `git add <specific files>` does not
    lock the index — another agent's concurrent `git add` can insert its own
@@ -321,6 +343,13 @@ done
 
 **Silent on clean state:** If `worktrees ≤ 1` AND `unmerged branches = 0` AND `stashes = 0` AND `stale branches = 0`, skip the rest of this phase. No output, no operator interrupt. Solo work on a single branch stays frictionless.
 
+**Concurrency gate (check BEFORE offering any sweep).** If other agents are
+live in this checkout, do NOT offer the merged-branch sweep at all -- surface
+the census read-only and say why. "Merged" does not imply "safe" under
+concurrency: a peer may hold a worktree on that branch, or be mid-rebase
+against it. The auto-sweep in this phase assumes a solo checkout; with peers
+live the skill's own advice becomes the hazard.
+
 **Decision rules when cruft exists:**
 
 | Finding | Action |
@@ -373,6 +402,12 @@ Then ask the operator:
 
 4. **Background tasks**
    - Running processes (check with `tasklist` or background task IDs)
+   - **If a task has already terminated, READ ITS RESULT before writing the
+     handover claim.** Never write "result unverified" when verification is one
+     command away -- a pending-shaped claim reads as "probably fine" to the next
+     instance, and a *verified failure* is far more valuable than an unchecked
+     hope. Verify at the RECEIVER (fetch the artifact, diff the output) rather
+     than trusting the exit code of the thing that produced it.
    - Scheduled operations pending
 
 5. **Documented deferred state from prior sessions** — the bulk of a long-running project's pending work. Read these before declaring the inventory complete:
@@ -437,6 +472,8 @@ This is a SECONDARY auditing pass *after* the scan-for items + categorization. T
 - [ ] Every commit message containing "TODO" / "XXX" / "FIXME" → promoted to a thread?
 - [ ] Every test added with `pytest.mark.skip` / `xfail` / similar → captured as a thread with the unblock condition?
 - [ ] Every external account / cookie / persistent context modified by automation → operator cleanup step documented?
+- [ ] Every artifact this session produced → does it live somewhere that **survives session/job teardown**? Session tmp dirs, job scratch dirs, and agent worktrees all die; the usual casualties are REVERSAL SNAPSHOTS (the only undo record for a bulk write) and the scripts that built currently-live state. Name a durable home or copy it.
+- [ ] Did this session touch state a **peer agent** owns, or run while a peer's blocker was open? (shared service restarted, their config/branch edited, a decision RELAYED by a peer that you never witnessed → record it as relayed-not-verified, with a pointer to whose session holds the verbatim.)
 - [ ] Every prior-handover thread → a STATUS CELL in the Carried-forward table (resolved-this-session / still-pending / obsoleted-by-X / **newly-timely**). A pointer to the old handover is NOT reconciliation — pointer-compression is a 3×-ledgered failure mode, and its worst loss is the NEWLY-TIMELY class: items parked as "queued behind X" where X shipped this very session. Only per-item touch reveals a flipped dependency. (Auto-memory / Option-D project with no HANDOVER.md? The prior-handover-equivalent is the MEMORY.md index + entries — reconcile those.)
 - [ ] Every user decision arc this session (scope-setting, redirect, ratification, "go ahead"-style authorization, "why" rationale) → captured as a **verbatim quote** with timestamp in Phase 4 doc? Paraphrase is not sufficient — the JSONL is local-only and the /compact summary strips cadence and specificity. The user's exact words are the grounding for every claim about what they wanted.
 
